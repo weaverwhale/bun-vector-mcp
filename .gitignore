@@ -1,0 +1,14 @@
+# Typical
+node_modules/
+.env
+.env.local
+*.db
+*.db-journal
+.DS_Store
+
+# Transformers.js cache
+.cache/
+models/
+
+# Source files
+source/

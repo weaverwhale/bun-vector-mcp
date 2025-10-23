@@ -1,0 +1,23 @@
+{
+  "name": "vector-mcp",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot index.ts",
+    "start": "bun index.ts",
+    "feed": "bun scripts/feed.ts",
+    "mcp": "bun mcp-server.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1",
+    "@xenova/transformers": "^2.17.2",
+    "pdf-parse": "^2.4.5"
+  }
+}

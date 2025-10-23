@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mw-vector": {
+      "command": "bun",
+      "args": ["mcp-server.ts"],
+      "cwd": "/Users/michaelweaver/Websites/mw-vector",
+      "env": {}
+    }
+  }
+}
+
