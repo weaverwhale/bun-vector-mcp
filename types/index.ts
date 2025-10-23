@@ -32,3 +32,21 @@ export interface IngestResult {
   error?: string;
 }
 
+export interface AskRequest {
+  question: string;
+  topK?: number;
+  maxAnswerLength?: number;
+  systemPrompt?: string;
+}
+
+export interface AskResponse {
+  answer: string;
+  sources: Array<{
+    filename: string;
+    chunk_text: string;
+    similarity: number;
+  }>;
+  question: string;
+  took_ms: number;
+}
+

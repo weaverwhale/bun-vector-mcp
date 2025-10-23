@@ -1,12 +1,15 @@
 import { initializeDatabase, getDatabase, getDocumentCount } from "./db/schema.ts";
 import { initializeEmbeddings } from "./services/embeddings.ts";
+import { initializeLLM } from "./services/llm.ts";
 import { searchSimilar } from "./services/search.ts";
-import type { SearchRequest, SearchResponse } from "./types/index.ts";
+import { askQuestion } from "./services/rag.ts";
+import type { SearchRequest, SearchResponse, AskRequest, AskResponse } from "./types/index.ts";
 
 // Initialize on startup
 console.log("Initializing vector database...");
 const db = initializeDatabase();
 await initializeEmbeddings();
+await initializeLLM();
 console.log("Ready!\n");
 
 const server = Bun.serve({
@@ -22,6 +25,7 @@ const server = Bun.serve({
             documents: count,
             endpoints: {
               search: "POST /search",
+              ask: "POST /ask",
               health: "GET /health"
             }
           }),
@@ -90,6 +94,56 @@ const server = Bun.serve({
           );
         }
       }
+    },
+    "/ask": {
+      POST: async (req) => {
+        try {
+          const body = await req.json() as AskRequest;
+          
+          if (!body.question || typeof body.question !== "string") {
+            return new Response(
+              JSON.stringify({ error: "Missing or invalid 'question' parameter" }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" }
+              }
+            );
+          }
+          
+          const topK = body.topK && typeof body.topK === "number" ? body.topK : 3;
+          const maxAnswerLength = body.maxAnswerLength && typeof body.maxAnswerLength === "number" 
+            ? body.maxAnswerLength 
+            : 200;
+          const systemPrompt = body.systemPrompt && typeof body.systemPrompt === "string"
+            ? body.systemPrompt
+            : undefined;
+          
+          const startTime = performance.now();
+          const result = await askQuestion(db, body.question, topK, maxAnswerLength, systemPrompt);
+          const endTime = performance.now();
+          
+          const response: AskResponse = {
+            ...result,
+            took_ms: Math.round((endTime - startTime) * 100) / 100
+          };
+          
+          return new Response(JSON.stringify(response), {
+            headers: { "Content-Type": "application/json" }
+          });
+        } catch (error) {
+          console.error("Ask error:", error);
+          return new Response(
+            JSON.stringify({
+              error: "Internal server error",
+              message: error instanceof Error ? error.message : String(error)
+            }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" }
+            }
+          );
+        }
+      }
     }
   },
   development: {
@@ -103,7 +157,12 @@ console.log("\nEndpoints:");
 console.log("  GET  / - API information");
 console.log("  GET  /health - Health check");
 console.log("  POST /search - Search similar documents");
+console.log("  POST /ask - Ask a question (RAG)");
 console.log("\nExample search:");
 console.log(`  curl -X POST http://localhost:${server.port}/search \\`);
 console.log(`    -H "Content-Type: application/json" \\`);
 console.log(`    -d '{"query": "your search query", "topK": 5}'`);
+console.log("\nExample ask:");
+console.log(`  curl -X POST http://localhost:${server.port}/ask \\`);
+console.log(`    -H "Content-Type: application/json" \\`);
+console.log(`    -d '{"question": "What is vector search?"}'`);
