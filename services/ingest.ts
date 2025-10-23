@@ -2,12 +2,7 @@ import type { Database } from "bun:sqlite";
 import { insertDocument } from "../db/schema.ts";
 import { generateEmbedding } from "./embeddings.ts";
 import type { IngestResult } from "../types/index.ts";
-
-// Use dynamic import for pdf-parse (CommonJS module)
-const pdfParse = (await import("pdf-parse")) as any as (
-  dataBuffer: Buffer,
-  options?: any
-) => Promise<{ text: string }>;
+import { PDFParse } from 'pdf-parse';
 
 const CHUNK_SIZE = 500; // characters per chunk
 const CHUNK_OVERLAP = 100; // overlap between chunks
@@ -33,10 +28,13 @@ export function chunkText(text: string): string[] {
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   const file = Bun.file(filePath);
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  
-  const data = await pdfParse(buffer);
-  return data.text;
+  // Convert to Uint8Array instead of Buffer for Bun compatibility
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const parser = new PDFParse({ data: uint8Array });
+  const result = await parser.getText();
+  await parser.destroy();
+
+  return result.text;
 }
 
 export async function extractTextFromFile(filePath: string): Promise<string> {
