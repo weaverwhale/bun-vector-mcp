@@ -15,7 +15,7 @@ bun start
 
 ### 3. Search Your Data
 ```bash
-curl -X POST http://localhost:3000/search \
+curl -X POST http://localhost:1738/search \
   -H "Content-Type: application/json" \
   -d '{"query": "your question here", "topK": 5}'
 ```
@@ -39,7 +39,7 @@ bun example.ts
 
 - **Documents**: 5 chunks indexed
 - **Model**: Xenova/all-MiniLM-L6-v2 (384 dimensions)
-- **Server**: http://localhost:3000
+- **Server**: http://localhost:1738
 
 ## 🔍 API Endpoints
 
@@ -65,20 +65,9 @@ This database supports MCP; see the example config below:
 
 See `MCP-SETUP.md` for detailed instructions.
 
-## 🔧 Using LMStudio (Optional)
-
-For better embeddings, use LMStudio:
-
-```bash
-LMSTUDIO_BASE_URL=http://localhost:1234/v1 LMSTUDIO_MODEL=nomic-embed-text bun run feed
-LMSTUDIO_BASE_URL=http://localhost:1234/v1 LMSTUDIO_MODEL=nomic-embed-text bun start
-```
-
-Or add to a `.env` file (see `.env.example`).
-
 ## 💡 Tips
 
-- First run downloads the embedding model (~80MB) unless using LMStudio
+- First run downloads the embedding model (~80MB)
 - Chunks are 500 characters with 100 character overlap
 - Similarity scores range from 0 (different) to 1 (identical)
 - Results are sorted by similarity (highest first)

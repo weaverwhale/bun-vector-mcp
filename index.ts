@@ -10,7 +10,7 @@ await initializeEmbeddings();
 console.log("Ready!\n");
 
 const server = Bun.serve({
-  port: 3000,
+  port: 1738,
   routes: {
     "/": {
       GET: () => {

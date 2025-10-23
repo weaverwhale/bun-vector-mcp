@@ -18,29 +18,9 @@ A type-safe vector database built with Bun, using SQLite for storage and local e
 bun install
 ```
 
-## Embedding Options
+## Embeddings
 
-This vector database supports two embedding methods:
-
-### Option 1: Local Model (Default)
-Uses `@xenova/transformers` with Xenova/all-MiniLM-L6-v2 (384 dimensions). No API keys or external services needed. The model (~80MB) downloads automatically on first run.
-
-### Option 2: LMStudio
-Use LMStudio's embedding API for potentially better quality embeddings.
-
-1. Download and run [LMStudio](https://lmstudio.ai/)
-2. Load an embedding model (e.g., nomic-embed-text)
-3. Start the local server in LMStudio
-4. Set environment variables:
-
-```bash
-LMSTUDIO_BASE_URL=http://localhost:1234/v1
-LMSTUDIO_MODEL=text-embedding-nomic-embed-text-v1.5
-```
-
-Or create a `.env` file (see `.env.example`).
-
-The system automatically uses LMStudio if `LMSTUDIO_BASE_URL` is set, otherwise falls back to the local model.
+Uses local embeddings via `@xenova/transformers` with the Xenova/all-MiniLM-L6-v2 model (384 dimensions). No API keys or external services needed. The model (~80MB) downloads automatically on first run and is cached locally for subsequent use.
 
 ## MCP Integration
 
@@ -104,14 +84,14 @@ Or with hot reload during development:
 bun run dev
 ```
 
-The server will start on `http://localhost:3000`
+The server will start on `http://localhost:1738`
 
 ### 3. Search Documents
 
 #### Using curl:
 
 ```bash
-curl -X POST http://localhost:3000/search \
+curl -X POST http://localhost:1738/search \
   -H "Content-Type: application/json" \
   -d '{"query": "your search query", "topK": 5}'
 ```
@@ -119,7 +99,7 @@ curl -X POST http://localhost:3000/search \
 #### Using JavaScript:
 
 ```javascript
-const response = await fetch('http://localhost:3000/search', {
+const response = await fetch('http://localhost:1738/search', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

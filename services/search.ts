@@ -5,7 +5,7 @@ import type { SearchResult } from "../types/index.ts";
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error("Vectors must have the same length");
+    throw new Error(`Vectors must have the same length (query: ${a.length}, stored: ${b.length})`);
   }
   
   let dotProduct = 0;

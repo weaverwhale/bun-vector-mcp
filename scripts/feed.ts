@@ -1,4 +1,4 @@
-import { initializeDatabase } from "../db/schema.ts";
+import { initializeDatabase, clearDatabase } from "../db/schema.ts";
 import { initializeEmbeddings } from "../services/embeddings.ts";
 import { ingestDirectory } from "../services/ingest.ts";
 
@@ -9,6 +9,9 @@ async function main() {
   
   // Initialize database
   const db = initializeDatabase();
+  
+  // Clear existing data
+  clearDatabase(db);
   
   // Initialize embeddings model
   await initializeEmbeddings();
