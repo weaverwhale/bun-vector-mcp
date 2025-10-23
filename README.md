@@ -18,6 +18,30 @@ A type-safe vector database built with Bun, using SQLite for storage and local e
 bun install
 ```
 
+## Embedding Options
+
+This vector database supports two embedding methods:
+
+### Option 1: Local Model (Default)
+Uses `@xenova/transformers` with Xenova/all-MiniLM-L6-v2 (384 dimensions). No API keys or external services needed. The model (~80MB) downloads automatically on first run.
+
+### Option 2: LMStudio
+Use LMStudio's embedding API for potentially better quality embeddings.
+
+1. Download and run [LMStudio](https://lmstudio.ai/)
+2. Load an embedding model (e.g., nomic-embed-text)
+3. Start the local server in LMStudio
+4. Set environment variables:
+
+```bash
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_MODEL=text-embedding-nomic-embed-text-v1.5
+```
+
+Or create a `.env` file (see `.env.example`).
+
+The system automatically uses LMStudio if `LMSTUDIO_BASE_URL` is set, otherwise falls back to the local model.
+
 ## MCP Integration
 
 This vector database can be used as an MCP (Model Context Protocol) server with Claude Desktop or other MCP clients.

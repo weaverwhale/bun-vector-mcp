@@ -65,9 +65,20 @@ This database supports MCP; see the example config below:
 
 See `MCP-SETUP.md` for detailed instructions.
 
+## 🔧 Using LMStudio (Optional)
+
+For better embeddings, use LMStudio:
+
+```bash
+LMSTUDIO_BASE_URL=http://localhost:1234/v1 LMSTUDIO_MODEL=nomic-embed-text bun run feed
+LMSTUDIO_BASE_URL=http://localhost:1234/v1 LMSTUDIO_MODEL=nomic-embed-text bun start
+```
+
+Or add to a `.env` file (see `.env.example`).
+
 ## 💡 Tips
 
-- First run downloads the embedding model (~80MB)
+- First run downloads the embedding model (~80MB) unless using LMStudio
 - Chunks are 500 characters with 100 character overlap
 - Similarity scores range from 0 (different) to 1 (identical)
 - Results are sorted by similarity (highest first)
