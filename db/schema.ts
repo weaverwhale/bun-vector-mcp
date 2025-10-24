@@ -1,5 +1,6 @@
 import { Database } from 'bun:sqlite';
 import type { Document } from '../types/index.ts';
+import { log } from '../utils/logger.ts';
 
 const DB_PATH = './vector.db';
 
@@ -25,7 +26,7 @@ export function initializeDatabase(): Database {
     CREATE INDEX IF NOT EXISTS idx_filename ON documents(filename)
   `);
 
-  console.error('Database initialized successfully');
+  log('Database initialized successfully');
   return db;
 }
 
@@ -93,5 +94,5 @@ export function getDocumentCount(db: Database): number {
 
 export function clearDatabase(db: Database): void {
   db.run('DELETE FROM documents');
-  console.error('Database cleared');
+  log('Database cleared');
 }

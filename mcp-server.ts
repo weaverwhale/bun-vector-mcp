@@ -1,15 +1,13 @@
-#!/usr/bin/env bun
+// Set MCP mode to suppress stdout logging
+process.env.MCP_MODE = 'true';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import {
-  initializeDatabase,
-  getDatabase,
-  getDocumentCount,
-} from './db/schema.ts';
+import { initializeDatabase, getDocumentCount } from './db/schema.ts';
 import { initializeEmbeddings } from './services/embeddings.ts';
 import { initializeLLM } from './services/llm.ts';
 import { searchSimilar } from './services/search.ts';
@@ -23,7 +21,7 @@ await initializeLLM();
 
 const server = new Server(
   {
-    name: 'vector-mcp',
+    name: 'bun-vector-mcp',
     version: '1.0.0',
   },
   {
@@ -222,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('MCP Vector Database Server running on stdio');
+  // Server is now running - no logging needed in MCP mode
 }
 
 main().catch(error => {

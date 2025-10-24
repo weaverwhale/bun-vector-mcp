@@ -1,29 +1,50 @@
 import { pipeline, env } from '@huggingface/transformers';
+import { generateText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 import {
+  PROVIDER_TYPE,
   LLM_MODEL,
   MAX_ANSWER_TOKENS,
   GENERATION_TEMPERATURE,
   DEFAULT_SYSTEM_PROMPT,
+  AI_BASE_URL,
+  AI_API_KEY,
 } from '../constants.ts';
+import { log, error } from '../utils/logger.ts';
 
 // Configure transformers to use local models
 env.allowLocalModels = true;
 env.useBrowserCache = false;
 
+// Transformers pipeline
 let llmPipeline: Awaited<ReturnType<typeof pipeline>> | null = null;
 
+// AI SDK provider
+let aiProvider: ReturnType<typeof createOpenAI> | null = null;
+
 export async function initializeLLM(): Promise<void> {
-  if (llmPipeline) {
-    return;
+  if (PROVIDER_TYPE === 'transformers') {
+    if (llmPipeline) {
+      return;
+    }
+
+    log(`Loading ${LLM_MODEL} (this may take a moment on first run)...`);
+
+    llmPipeline = await pipeline('text-generation', LLM_MODEL);
+    log('Local LLM model loaded successfully');
+  } else if (PROVIDER_TYPE === 'ai-sdk') {
+    if (aiProvider) {
+      return;
+    }
+
+    log('Using AI SDK with LLM model:', LLM_MODEL);
+    log('Base URL:', AI_BASE_URL);
+
+    aiProvider = createOpenAI({
+      baseURL: AI_BASE_URL,
+      apiKey: AI_API_KEY,
+    });
   }
-
-  console.error(
-    `Loading ${LLM_MODEL} (this may take a moment on first run)...`
-  );
-
-  llmPipeline = await pipeline('text-generation', LLM_MODEL);
-
-  console.error('Local LLM model loaded successfully');
 }
 
 export async function generateAnswer(
@@ -32,44 +53,84 @@ export async function generateAnswer(
   maxNewTokens: number = MAX_ANSWER_TOKENS,
   systemPrompt?: string
 ): Promise<string> {
-  if (!llmPipeline) {
-    await initializeLLM();
-  }
-
-  if (!llmPipeline) {
-    throw new Error('Failed to initialize LLM pipeline');
-  }
-
   const system = systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-  // Create a well-structured prompt
-  const prompt = `${system}\n\n${context}\n\n${question}`;
+  if (PROVIDER_TYPE === 'transformers') {
+    if (!llmPipeline) {
+      await initializeLLM();
+    }
 
-  // Generate answer with improved parameters
-  const result = await llmPipeline(prompt, {
-    max_new_tokens: maxNewTokens,
-    temperature: GENERATION_TEMPERATURE,
-    do_sample: true,
-    return_full_text: false,
-    repetition_penalty: 1.1, // Reduce repetition
-    top_p: 0.9, // Nucleus sampling for better quality
-  });
+    if (!llmPipeline) {
+      throw new Error('Failed to initialize LLM pipeline');
+    }
 
-  // Extract the generated text
-  const generatedText =
-    (result as any)[0]?.generated_text || "I couldn't generate an answer.";
+    // Create a well-structured prompt
+    const prompt = `${system}\n\n${context}\n\n${question}`;
 
-  // Clean up the answer
-  let answer = generatedText.trim();
+    // Generate answer with improved parameters
+    const result = await llmPipeline(prompt, {
+      max_new_tokens: maxNewTokens,
+      temperature: GENERATION_TEMPERATURE,
+      do_sample: true,
+      return_full_text: false,
+      repetition_penalty: 1.1, // Reduce repetition
+      top_p: 0.9, // Nucleus sampling for better quality
+    });
 
-  // If the model still returns the full text with prompt, extract just the answer
-  if (answer.includes('Provide a detailed')) {
-    const parts = answer.split(/(?:Provide a detailed|Answer:)/i);
-    answer = parts[parts.length - 1]?.trim() || answer;
+    // Extract the generated text
+    const generatedText =
+      (result as any)[0]?.generated_text || "I couldn't generate an answer.";
+
+    // Clean up the answer
+    let answer = generatedText.trim();
+
+    // If the model still returns the full text with prompt, extract just the answer
+    if (answer.includes('Provide a detailed')) {
+      const parts = answer.split(/(?:Provide a detailed|Answer:)/i);
+      answer = parts[parts.length - 1]?.trim() || answer;
+    }
+
+    // Remove any remaining prompt fragments
+    answer = answer.replace(/^(?:Answer:|Response:)\s*/i, '').trim();
+
+    return answer || "I couldn't generate an answer.";
+  } else if (PROVIDER_TYPE === 'ai-sdk') {
+    if (!aiProvider) {
+      await initializeLLM();
+    }
+
+    if (!aiProvider) {
+      throw new Error('Failed to initialize AI provider');
+    }
+
+    try {
+      // Create a well-structured prompt
+      const userPrompt = `${context}\n\n${question}`;
+
+      // Generate answer using AI SDK with chat completions
+      // Note: Token limits are controlled via the model's settings in LMStudio
+      const { text } = await generateText({
+        model: aiProvider.chat(LLM_MODEL),
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: GENERATION_TEMPERATURE,
+        topP: 0.9,
+      });
+
+      // Clean up the answer
+      let answer = text.trim();
+
+      // Remove any remaining prompt fragments
+      answer = answer.replace(/^(?:Answer:|Response:)\s*/i, '').trim();
+
+      return answer || "I couldn't generate an answer.";
+    } catch (err) {
+      error('Error generating answer:', err);
+      throw new Error(`Failed to generate answer: ${err}`);
+    }
+  } else {
+    throw new Error(`Unknown provider type: ${PROVIDER_TYPE}`);
   }
-
-  // Remove any remaining prompt fragments
-  answer = answer.replace(/^(?:Answer:|Response:)\s*/i, '').trim();
-
-  return answer || "I couldn't generate an answer.";
 }

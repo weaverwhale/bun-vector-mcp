@@ -6,8 +6,7 @@ A type-safe vector database built with Bun, using SQLite for storage and local e
 
 - 🚀 Built with Bun for maximum performance
 - 📊 SQLite-based storage using `bun:sqlite`
-- 🤖 Local embeddings with `@xenova/transformers` (no API keys needed)
-- 🧠 Local LLM for RAG (Retrieval-Augmented Generation)
+- 🤖 Transformers or AI SDK integration with support for multiple providers
 - 📄 PDF and text file support
 - 🔍 Semantic search via cosine similarity
 - 🛡️ Fully type-safe with TypeScript
@@ -19,9 +18,56 @@ A type-safe vector database built with Bun, using SQLite for storage and local e
 bun install
 ```
 
-## Embeddings
+## Configuration
 
-Uses local embeddings via `@xenova/transformers` with the Xenova/all-MiniLM-L6-v2 model (384 dimensions). No API keys or external services needed. The model (~80MB) downloads automatically on first run and is cached locally for subsequent use.
+This project supports **two provider options**:
+
+### Option 1: Transformers (Local, Default)
+
+**No configuration needed!** Just install and run. Perfect for:
+
+- Quick local development
+- No external dependencies or API keys
+- Offline usage
+
+Uses:
+
+- `Xenova/all-MiniLM-L6-v2` for embeddings (384 dimensions)
+- `Xenova/Phi-3-mini-4k-instruct` for LLM
+- Models (~80MB) download automatically on first run and are cached
+
+### Option 2: AI SDK (LMStudio/Cloud Providers)
+
+For more powerful models or cloud integration, set `PROVIDER_TYPE=ai-sdk` in your `.env` file:
+
+#### LMStudio Setup
+
+1. Download and install [LMStudio](https://lmstudio.ai/)
+2. Load your preferred embedding model and LLM in LMStudio
+3. Start the LMStudio server (default: `http://localhost:1234`)
+4. Create a `.env` file:
+
+```bash
+PROVIDER_TYPE=ai-sdk
+AI_PROVIDER=openai
+AI_BASE_URL=http://localhost:1234/v1
+AI_API_KEY=lm-studio
+
+# Model names (must match models loaded in LMStudio)
+LLM_MODEL=llama-3.2-3b-instruct
+EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
+```
+
+#### OpenAI or Other Cloud Providers
+
+```bash
+PROVIDER_TYPE=ai-sdk
+AI_PROVIDER=openai
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=your-openai-api-key
+LLM_MODEL=gpt-4
+EMBEDDING_MODEL=text-embedding-3-small
+```
 
 ## MCP Integration
 
@@ -69,8 +115,8 @@ bun scripts/feed.ts /path/to/your/documents
 This will:
 
 - Extract text from all PDF and TXT files
-- Split content into chunks (500 chars with 100 char overlap)
-- Generate embeddings using the all-MiniLM-L6-v2 model
+- Split content into chunks (1200 chars with 200 char overlap)
+- Generate embeddings using your configured embedding model
 - Store everything in the SQLite database
 
 ### 2. Start the API Server
@@ -159,15 +205,39 @@ Search for similar documents
 
 ## Technical Details
 
-- **Embedding Model**: `Xenova/all-MiniLM-L6-v2` (384 dimensions)
-- **LLM Model**: `Xenova/Phi-3-mini-4k-instruct` (for answer generation)
-- **Chunk Size**: 500 characters with 100 character overlap
+### Provider Comparison
+
+| Feature         | Transformers (Default)            | AI SDK                         |
+| --------------- | --------------------------------- | ------------------------------ |
+| **Setup**       | Zero config, works out of the box | Requires .env configuration    |
+| **Models**      | Fixed: ONNX models                | Flexible: Any compatible model |
+| **Network**     | Offline capable                   | Requires server/API access     |
+| **Performance** | Good for local use                | Depends on provider            |
+| **Cost**        | Free                              | Free (LMStudio) or API costs   |
+| **Best For**    | Quick dev, offline, privacy       | Production, powerful models    |
+
+### Configuration
+
+- **Default Provider**: Transformers (local)
+- **Alternative Provider**: AI SDK (LMStudio/OpenAI/etc) - see `PROVIDER_TYPE` in `.env`
+- **Embedding Dimensions**: 384 (transformers) or varies (AI SDK)
+- **Chunk Size**: 1200 characters with 200 character overlap
 - **Similarity Metric**: Cosine similarity
 - **Database**: SQLite via `bun:sqlite`
 
 ## Performance
 
-The first time you run the feed script, the embedding model (~80MB) will be downloaded and cached locally. Subsequent runs will be much faster.
+### Transformers (Default)
+
+- First run downloads models (~80MB)
+- Subsequent runs use cached models
+- Works completely offline
+
+### AI SDK
+
+- LMStudio: Ensure models are loaded before running
+- Cloud providers: API rate limits and costs may apply
+- Can use more powerful models for better results
 
 ## License
 

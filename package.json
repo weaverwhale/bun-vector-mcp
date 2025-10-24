@@ -1,5 +1,5 @@
 {
-  "name": "vector-mcp",
+  "name": "bun-vector-mcp",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -21,8 +21,10 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.1",
+    "@ai-sdk/openai": "^2.0.53",
     "@huggingface/transformers": "^3.2.3",
+    "@modelcontextprotocol/sdk": "^1.20.1",
+    "ai": "^5.0.78",
     "pdf-parse": "^2.4.5"
   }
 }

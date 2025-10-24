@@ -191,7 +191,7 @@ export async function ingestFile(
   const filename = filePath.split('/').pop() || filePath;
 
   try {
-    console.error(`Processing: ${filename}`);
+    console.log(`Processing: ${filename}`);
 
     // Extract text from file
     const content = await extractTextFromFile(filePath);
@@ -207,18 +207,18 @@ export async function ingestFile(
 
     // Split into chunks
     const chunks = chunkText(content);
-    console.error(`  Created ${chunks.length} chunks`);
+    console.log(`  Created ${chunks.length} chunks`);
 
     // Generate embeddings and insert each chunk
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]!;
-      console.error(`  Processing chunk ${i + 1}/${chunks.length}`);
+      console.log(`  Processing chunk ${i + 1}/${chunks.length}`);
 
       const embedding = await generateEmbedding(chunk);
       insertDocument(db, filename, content, chunk, embedding, i, chunk.length);
     }
 
-    console.error(`✓ Successfully processed: ${filename}`);
+    console.log(`✓ Successfully processed: ${filename}`);
 
     return {
       filename,
@@ -253,7 +253,7 @@ export async function ingestDirectory(
       return results;
     }
 
-    console.error(`Found ${files.length} files to process\n`);
+    console.log(`Found ${files.length} files to process\n`);
 
     for (const file of files) {
       const fullPath = `${directoryPath}/${file}`;
