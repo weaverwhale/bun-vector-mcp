@@ -48,8 +48,6 @@ This vector database can be used as an MCP (Model Context Protocol) server with 
 2. Use the following tools in Claude:
    - `vector_search` - Search for similar content
    - `vector_ask` - Ask questions and get AI-generated answers (RAG)
-   - `vector_ingest_file` - Add a single file
-   - `vector_ingest_directory` - Add all files from a folder
    - `vector_status` - Check database status
 
 ## Usage
@@ -120,7 +118,6 @@ Server health status and document count
 ### `POST /search`
 
 Search for similar documents
-
 
 ## Project Structure
 
