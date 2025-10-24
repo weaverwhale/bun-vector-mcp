@@ -7,16 +7,20 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { initializeDatabase, getDatabase, getDocumentCount } from "./db/schema.ts";
 import { initializeEmbeddings } from "./services/embeddings.ts";
+import { initializeLLM } from "./services/llm.ts";
 import { ingestFile, ingestDirectory } from "./services/ingest.ts";
 import { searchSimilar } from "./services/search.ts";
+import { askQuestion } from "./services/rag.ts";
+import { EMBEDDING_MODEL, LLM_MODEL } from "./constants.ts";
 
-// Initialize database and embeddings
+// Initialize database, embeddings, and LLM
 const db = initializeDatabase();
 await initializeEmbeddings();
+await initializeLLM();
 
 const server = new Server(
   {
-    name: "mw-vector",
+    name: "vector-mcp",
     version: "1.0.0",
   },
   {
@@ -83,6 +87,34 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {},
+        },
+      },
+      {
+        name: "vector_ask",
+        description: "Ask a question and get an AI-generated answer based on relevant documents from the vector database (RAG)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            question: {
+              type: "string",
+              description: "The question to ask",
+            },
+            topK: {
+              type: "number",
+              description: "Number of relevant documents to use as context (default: 3)",
+              default: 3,
+            },
+            maxAnswerLength: {
+              type: "number",
+              description: "Maximum length of the answer in tokens (default: 200)",
+              default: 200,
+            },
+            systemPrompt: {
+              type: "string",
+              description: "Optional custom system prompt for the AI",
+            },
+          },
+          required: ["question"],
         },
       },
     ],
@@ -187,8 +219,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 {
                   status: "online",
                   document_chunks: count,
-                  embedding_model: "Xenova/all-MiniLM-L6-v2",
-                  dimensions: 384,
+                  embedding_model: EMBEDDING_MODEL,
+                  llm_model: LLM_MODEL,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "vector_ask": {
+        const question = args?.question as string;
+        const topK = (args?.topK as number) || 3;
+        const maxAnswerLength = (args?.maxAnswerLength as number) || 200;
+        const systemPrompt = args?.systemPrompt as string | undefined;
+
+        if (!question) {
+          throw new Error("question parameter is required");
+        }
+
+        const startTime = performance.now();
+        const result = await askQuestion(db, question, topK, maxAnswerLength, systemPrompt);
+        const endTime = performance.now();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  ...result,
+                  took_ms: Math.round((endTime - startTime) * 100) / 100,
                 },
                 null,
                 2

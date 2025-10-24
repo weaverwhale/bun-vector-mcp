@@ -4,6 +4,7 @@ import { initializeLLM } from "./services/llm.ts";
 import { searchSimilar } from "./services/search.ts";
 import { askQuestion } from "./services/rag.ts";
 import type { SearchRequest, SearchResponse, AskRequest, AskResponse } from "./types/index.ts";
+import askHtml from "./ask.html";
 
 // Initialize on startup
 console.log("Initializing vector database...");
@@ -14,6 +15,7 @@ console.log("Ready!\n");
 
 const server = Bun.serve({
   port: 1738,
+  idleTimeout: 120, // Increase timeout for LLM generation (120 seconds)
   routes: {
     "/": {
       GET: () => {
@@ -26,7 +28,8 @@ const server = Bun.serve({
             endpoints: {
               search: "POST /search",
               ask: "POST /ask",
-              health: "GET /health"
+              health: "GET /health",
+              ui: "GET /ui"
             }
           }),
           {
@@ -35,6 +38,7 @@ const server = Bun.serve({
         );
       }
     },
+    "/ui": askHtml,
     "/health": {
       GET: () => {
         const count = getDocumentCount(db);
@@ -155,6 +159,7 @@ console.log(`🚀 Vector Database API running on http://localhost:${server.port}
 console.log(`📊 Currently storing ${getDocumentCount(db)} document chunks`);
 console.log("\nEndpoints:");
 console.log("  GET  / - API information");
+console.log("  GET  /ui - Web UI for asking questions");
 console.log("  GET  /health - Health check");
 console.log("  POST /search - Search similar documents");
 console.log("  POST /ask - Ask a question (RAG)");
@@ -166,3 +171,4 @@ console.log("\nExample ask:");
 console.log(`  curl -X POST http://localhost:${server.port}/ask \\`);
 console.log(`    -H "Content-Type: application/json" \\`);
 console.log(`    -d '{"question": "What is vector search?"}'`);
+console.log(`\n💻 Web UI available at: http://localhost:${server.port}/ui`);
