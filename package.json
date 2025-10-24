@@ -8,10 +8,12 @@
     "start": "bun index.ts",
     "feed": "bun scripts/feed.ts",
     "mcp": "bun mcp-server.ts",
+    "test:mcp": "mcp-inspector bun mcp-server.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.17.2",
     "@types/bun": "latest",
     "prettier": "^3.6.2"
   },

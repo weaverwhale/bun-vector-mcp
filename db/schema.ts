@@ -25,7 +25,7 @@ export function initializeDatabase(): Database {
     CREATE INDEX IF NOT EXISTS idx_filename ON documents(filename)
   `);
 
-  console.log('Database initialized successfully');
+  console.error('Database initialized successfully');
   return db;
 }
 
@@ -93,5 +93,5 @@ export function getDocumentCount(db: Database): number {
 
 export function clearDatabase(db: Database): void {
   db.run('DELETE FROM documents');
-  console.log('Database cleared');
+  console.error('Database cleared');
 }

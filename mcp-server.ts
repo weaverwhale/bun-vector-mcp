@@ -12,7 +12,6 @@ import {
 } from './db/schema.ts';
 import { initializeEmbeddings } from './services/embeddings.ts';
 import { initializeLLM } from './services/llm.ts';
-import { ingestFile, ingestDirectory } from './services/ingest.ts';
 import { searchSimilar } from './services/search.ts';
 import { askQuestion } from './services/rag.ts';
 import { EMBEDDING_MODEL, LLM_MODEL } from './constants.ts';
@@ -56,36 +55,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['query'],
-        },
-      },
-      {
-        name: 'vector_ingest_file',
-        description:
-          'Ingest a single PDF or text file into the vector database',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            filePath: {
-              type: 'string',
-              description: 'Path to the PDF or text file to ingest',
-            },
-          },
-          required: ['filePath'],
-        },
-      },
-      {
-        name: 'vector_ingest_directory',
-        description:
-          'Ingest all PDF and text files from a directory into the vector database',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            directoryPath: {
-              type: 'string',
-              description: 'Path to the directory containing files to ingest',
-            },
-          },
-          required: ['directoryPath'],
         },
       },
       {
@@ -159,60 +128,6 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
                   results,
                   query,
                   took_ms: Math.round((endTime - startTime) * 100) / 100,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      }
-
-      case 'vector_ingest_file': {
-        const filePath = args?.filePath as string;
-
-        if (!filePath) {
-          throw new Error('filePath parameter is required');
-        }
-
-        const result = await ingestFile(db, filePath);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case 'vector_ingest_directory': {
-        const directoryPath = args?.directoryPath as string;
-
-        if (!directoryPath) {
-          throw new Error('directoryPath parameter is required');
-        }
-
-        const results = await ingestDirectory(db, directoryPath);
-        const successful = results.filter(r => r.success);
-        const failed = results.filter(r => !r.success);
-        const totalChunks = successful.reduce(
-          (sum, r) => sum + r.chunks_created,
-          0
-        );
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  total_files: results.length,
-                  successful: successful.length,
-                  failed: failed.length,
-                  total_chunks: totalChunks,
-                  results,
                 },
                 null,
                 2

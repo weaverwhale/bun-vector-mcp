@@ -12,14 +12,14 @@ export async function initializeEmbeddings(): Promise<void> {
     return;
   }
 
-  console.log(
+  console.error(
     'Loading local embedding model (this may take a moment on first run)...'
   );
 
   // Using all-MiniLM-L6-v2: 384-dimensional embeddings, fast and efficient
   embeddingPipeline = await pipeline('feature-extraction', EMBEDDING_MODEL);
 
-  console.log('Local embedding model loaded successfully');
+  console.error('Local embedding model loaded successfully');
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {

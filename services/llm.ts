@@ -17,11 +17,13 @@ export async function initializeLLM(): Promise<void> {
     return;
   }
 
-  console.log(`Loading ${LLM_MODEL} (this may take a moment on first run)...`);
+  console.error(
+    `Loading ${LLM_MODEL} (this may take a moment on first run)...`
+  );
 
   llmPipeline = await pipeline('text-generation', LLM_MODEL);
 
-  console.log('Local LLM model loaded successfully');
+  console.error('Local LLM model loaded successfully');
 }
 
 export async function generateAnswer(
