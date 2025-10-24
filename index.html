@@ -44,6 +44,24 @@
         font-size: 16px;
         box-sizing: border-box;
       }
+      .mode-toggle {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+      }
+      .mode-toggle label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: normal;
+      }
+      .mode-toggle input[type='radio'] {
+        margin-right: 5px;
+        cursor: pointer;
+      }
       .button-group {
         display: flex;
         gap: 10px;
@@ -234,8 +252,30 @@
         Ask questions and get answers from your document collection
       </p>
 
+      <div class="mode-toggle">
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="ask"
+            checked
+            onchange="updateMode()"
+          />
+          🤖 Ask (RAG)
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="search"
+            onchange="updateMode()"
+          />
+          🔍 Search (Similarity)
+        </label>
+      </div>
+
       <div class="input-group">
-        <label for="question">Your Question:</label>
+        <label for="question" id="inputLabel">Your Question:</label>
         <input
           type="text"
           id="question"
@@ -245,7 +285,7 @@
       </div>
 
       <div class="button-group">
-        <button class="btn-stream" onclick="askQuestion()">
+        <button class="btn-stream" onclick="submitQuery()" id="submitBtn">
           🤖 Ask Question
         </button>
       </div>
@@ -257,20 +297,55 @@
     <script>
       const API_URL = 'http://localhost:1738';
       let isLoading = false;
+      let currentMode = 'ask';
 
-      async function askQuestion() {
+      function updateMode() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        currentMode = mode;
+
+        const inputLabel = document.getElementById('inputLabel');
+        const submitBtn = document.getElementById('submitBtn');
+        const questionInput = document.getElementById('question');
+
+        if (mode === 'ask') {
+          inputLabel.textContent = 'Your Question:';
+          submitBtn.textContent = '🤖 Ask Question';
+          questionInput.placeholder = 'e.g., What is the conjugate method?';
+        } else {
+          inputLabel.textContent = 'Search Query:';
+          submitBtn.textContent = '🔍 Search Documents';
+          questionInput.placeholder = 'e.g., conjugate method';
+        }
+
+        // Clear previous response when switching modes
+        document.getElementById('response').innerHTML = '';
+      }
+
+      async function submitQuery() {
         if (isLoading) return;
 
         const questionInput = document.getElementById('question').value;
         if (!questionInput.trim()) {
-          alert('Please enter a question');
+          alert(
+            currentMode === 'ask'
+              ? 'Please enter a question'
+              : 'Please enter a search query'
+          );
           return;
         }
 
+        if (currentMode === 'ask') {
+          await askQuestion(questionInput);
+        } else {
+          await searchDocuments(questionInput);
+        }
+      }
+
+      async function askQuestion(question) {
         isLoading = true;
         const responseDiv = document.getElementById('response');
         responseDiv.innerHTML =
-          '<div class="response-container loading">Loading response...</div>';
+          '<div class="response-container loading">Generating answer...</div>';
 
         try {
           const response = await fetch(`${API_URL}/ask`, {
@@ -279,7 +354,7 @@
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              question: questionInput,
+              question: question,
               topK: 3,
               maxAnswerLength: 500,
             }),
@@ -290,12 +365,7 @@
           }
 
           const data = await response.json();
-          updateResponse(
-            data.answer,
-            data.sources,
-            data.question,
-            data.took_ms
-          );
+          displayAskResponse(data);
         } catch (error) {
           responseDiv.innerHTML = `<div class="response-container error">
           <strong>Error:</strong> ${error.message}
@@ -305,20 +375,53 @@
         }
       }
 
-      function updateResponse(answer, sources, question, took_ms) {
+      async function searchDocuments(query) {
+        isLoading = true;
+        const responseDiv = document.getElementById('response');
+        responseDiv.innerHTML =
+          '<div class="response-container loading">Searching documents...</div>';
+
+        try {
+          const response = await fetch(`${API_URL}/search`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              query: query,
+              topK: 5,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          displaySearchResponse(data);
+        } catch (error) {
+          responseDiv.innerHTML = `<div class="response-container error">
+          <strong>Error:</strong> ${error.message}
+        </div>`;
+        } finally {
+          isLoading = false;
+        }
+      }
+
+      function displayAskResponse(data) {
         const responseDiv = document.getElementById('response');
 
         // Parse markdown to HTML
-        const parsedAnswer = answer
-          ? marked.parse(answer)
+        const parsedAnswer = data.answer
+          ? marked.parse(data.answer)
           : 'Waiting for response...';
 
         let sourcesHtml = '';
-        if (sources && sources.length > 0) {
+        if (data.sources && data.sources.length > 0) {
           sourcesHtml = `
           <div class="sources">
-            <h3>Sources (${sources.length})</h3>
-            ${sources
+            <h3>Sources (${data.sources.length})</h3>
+            ${data.sources
               .map(
                 (source, idx) => `
               <div class="source">
@@ -334,8 +437,8 @@
         }
 
         let metaHtml = '';
-        if (took_ms !== null) {
-          metaHtml = `<div class="meta">Response time: ${took_ms}ms</div>`;
+        if (data.took_ms !== null) {
+          metaHtml = `<div class="meta">Response time: ${data.took_ms}ms</div>`;
         }
 
         responseDiv.innerHTML = `
@@ -347,12 +450,52 @@
       `;
       }
 
+      function displaySearchResponse(data) {
+        const responseDiv = document.getElementById('response');
+
+        let resultsHtml = '';
+        if (data.results && data.results.length > 0) {
+          resultsHtml = `
+          <div class="sources">
+            <h3>Search Results (${data.results.length})</h3>
+            ${data.results
+              .map(
+                (result, idx) => `
+              <div class="source" style="padding: 15px; margin-bottom: 12px;">
+                <strong>${idx + 1}. ${result.filename}</strong>
+                <br>
+                <em>Similarity: ${(result.similarity * 100).toFixed(1)}%</em>
+                <br><br>
+                <div style="color: #333; line-height: 1.5;">${result.chunk_text}</div>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        `;
+        } else {
+          resultsHtml = '<div class="answer">No results found.</div>';
+        }
+
+        let metaHtml = '';
+        if (data.took_ms !== null) {
+          metaHtml = `<div class="meta">Search time: ${data.took_ms}ms</div>`;
+        }
+
+        responseDiv.innerHTML = `
+        <div class="response-container">
+          ${resultsHtml}
+          ${metaHtml}
+        </div>
+      `;
+      }
+
       // Allow Enter key to submit
       document
         .getElementById('question')
         .addEventListener('keypress', function (e) {
           if (e.key === 'Enter') {
-            askQuestion();
+            submitQuery();
           }
         });
     </script>

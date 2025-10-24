@@ -1,8 +1,4 @@
-import {
-  initializeDatabase,
-  getDatabase,
-  getDocumentCount,
-} from './db/schema.ts';
+import { initializeDatabase, getDocumentCount } from './db/schema.ts';
 import { initializeEmbeddings } from './services/embeddings.ts';
 import { initializeLLM } from './services/llm.ts';
 import { searchSimilar } from './services/search.ts';
@@ -13,7 +9,7 @@ import type {
   AskRequest,
   AskResponse,
 } from './types/index.ts';
-import askHtml from './ask.html';
+import indexHtml from './index.html';
 
 // Initialize on startup
 console.log('Initializing vector database...');
@@ -47,7 +43,7 @@ const server = Bun.serve({
         );
       },
     },
-    '/ui': askHtml,
+    '/ui': indexHtml,
     '/health': {
       GET: () => {
         const count = getDocumentCount(db);
