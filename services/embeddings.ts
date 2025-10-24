@@ -1,4 +1,5 @@
-import { pipeline, env } from "@xenova/transformers";
+import { pipeline, env } from "@huggingface/transformers";
+import { EMBEDDING_MODEL } from "../constants.ts";
 
 // Configure transformers to use local models
 env.allowLocalModels = true;
@@ -16,7 +17,7 @@ export async function initializeEmbeddings(): Promise<void> {
   // Using all-MiniLM-L6-v2: 384-dimensional embeddings, fast and efficient
   embeddingPipeline = await pipeline(
     "feature-extraction",
-    "Xenova/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL
   );
   
   console.log("Local embedding model loaded successfully");
@@ -34,12 +35,10 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   // Generate embedding with mean pooling
   const output = await embeddingPipeline(
     text,
-    // @ts-expect-error - transformers.js pipeline options types are not fully accurate
     { pooling: "mean" }
   );
   
   // Extract the embedding array
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const embedding = Array.from((output as any).data) as number[];
   
   return embedding;

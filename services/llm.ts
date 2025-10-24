@@ -1,4 +1,5 @@
-import { pipeline, env } from "@xenova/transformers";
+import { pipeline, env } from "@huggingface/transformers";
+import { LLM_MODEL } from "../constants.ts";  
 
 // Configure transformers to use local models
 env.allowLocalModels = true;
@@ -11,13 +12,11 @@ export async function initializeLLM(): Promise<void> {
     return;
   }
   
-  console.log("Loading local LLM model (this may take a moment on first run)...");
+  console.log(`Loading ${LLM_MODEL} (this may take a moment on first run)...`);
   
-  // Using Phi-2 model - small but capable, good for local use
-  // Alternative: "Xenova/LaMini-Flan-T5-783M" for faster but less capable responses
   llmPipeline = await pipeline(
-    "text2text-generation",
-    "Xenova/LaMini-Flan-T5-783M"
+    "text-generation",
+    LLM_MODEL
   );
   
   console.log("Local LLM model loaded successfully");
@@ -26,7 +25,7 @@ export async function initializeLLM(): Promise<void> {
 export async function generateAnswer(
   question: string,
   context: string,
-  maxLength: number = 200,
+  maxNewTokens: number = 512,
   systemPrompt?: string
 ): Promise<string> {
   if (!llmPipeline) {
@@ -45,17 +44,21 @@ export async function generateAnswer(
   const prompt = `${system}\n\nContext: ${context}\n\nQuestion: ${question}\n\nAnswer:`;
   
   // Generate answer
-  // @ts-expect-error - transformers.js pipeline options types are not fully accurate
   const result = await llmPipeline(prompt, {
-    max_length: maxLength,
-    temperature: 0.7,
+    max_new_tokens: maxNewTokens,  // Generate up to 512 new tokens (not including prompt)
+    temperature: 0.1,
     do_sample: true,
+    return_full_text: false,  // Only return the generated text, not the prompt
   });
   
   // Extract the generated text
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const answer = (result as any)[0]?.generated_text || "I couldn't generate an answer.";
+  const generatedText = (result as any)[0]?.generated_text || "I couldn't generate an answer.";
   
-  return answer.trim();
+  // If the model still returns the full text with prompt, extract just the answer
+  const answerPart = generatedText.includes("Answer:") 
+    ? generatedText.split("Answer:").pop()?.trim() 
+    : generatedText.trim();
+  
+  return answerPart || "I couldn't generate an answer.";
 }
 

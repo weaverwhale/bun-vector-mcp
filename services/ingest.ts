@@ -108,20 +108,7 @@ export async function ingestDirectory(
   const results: IngestResult[] = [];
   
   try {
-    // Check if directory exists using fs
-    const fs = await import("node:fs/promises");
-    try {
-      const stats = await fs.stat(directoryPath);
-      if (!stats.isDirectory()) {
-        console.error(`Path is not a directory: ${directoryPath}`);
-        return results;
-      }
-    } catch {
-      console.error(`Directory not found: ${directoryPath}`);
-      return results;
-    }
-    
-    // Read directory contents
+    // Read directory contents using Bun's native Glob API
     const files = await Array.fromAsync(
       new Bun.Glob("**/*.{pdf,txt}").scan({ cwd: directoryPath })
     );
