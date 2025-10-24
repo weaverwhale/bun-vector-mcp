@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import { getAllDocuments } from "../db/schema.ts";
 import { generateEmbedding } from "./embeddings.ts";
 import type { SearchResult } from "../types/index.ts";
+import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from "../constants.ts";
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -31,7 +32,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 export async function searchSimilar(
   db: Database,
   query: string,
-  topK: number = 5
+  topK: number = DEFAULT_TOP_K,
+  minSimilarity: number = SIMILARITY_THRESHOLD
 ): Promise<SearchResult[]> {
   // Generate embedding for the query
   const queryEmbedding = await generateEmbedding(query);
@@ -51,9 +53,12 @@ export async function searchSimilar(
     similarity: cosineSimilarity(queryEmbedding, doc.embedding)
   }));
   
-  // Sort by similarity (descending) and take top K
+  // Sort by similarity (descending)
   results.sort((a, b) => b.similarity - a.similarity);
   
-  return results.slice(0, topK);
+  // Filter by minimum similarity threshold and take top K
+  return results
+    .filter(result => result.similarity >= minSimilarity)
+    .slice(0, topK);
 }
 

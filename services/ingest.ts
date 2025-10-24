@@ -3,26 +3,152 @@ import { insertDocument } from "../db/schema.ts";
 import { generateEmbedding } from "./embeddings.ts";
 import type { IngestResult } from "../types/index.ts";
 import { PDFParse } from 'pdf-parse';
+import { CHUNK_SIZE, CHUNK_OVERLAP } from "../constants.ts";
 
-const CHUNK_SIZE = 500; // characters per chunk
-const CHUNK_OVERLAP = 100; // overlap between chunks
+/**
+ * Cleans PDF text by removing common artifacts and normalizing whitespace
+ */
+export function cleanPDFText(text: string): string {
+  let cleaned = text;
+  
+  // Remove page numbers (various formats)
+  cleaned = cleaned.replace(/\bPage\s+\d+\s+of\s+\d+\b/gi, '');
+  cleaned = cleaned.replace(/\b\d+\s+of\s+\d+\b/g, '');
+  cleaned = cleaned.replace(/^\s*\d+\s*$/gm, ''); // standalone numbers on lines
+  
+  // Remove common header/footer patterns
+  cleaned = cleaned.replace(/^[-_=]+$/gm, ''); // lines of dashes/underscores
+  cleaned = cleaned.replace(/^\s*\[.*?\]\s*$/gm, ''); // lines with just [text]
+  
+  // Fix hyphenated words split across lines
+  cleaned = cleaned.replace(/(\w+)-\s*\n\s*(\w+)/g, '$1$2');
+  
+  // Normalize whitespace
+  cleaned = cleaned.replace(/[ \t]+/g, ' '); // multiple spaces/tabs to single space
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n'); // max 2 consecutive newlines
+  cleaned = cleaned.replace(/\r\n/g, '\n'); // normalize line endings
+  
+  // Remove leading/trailing whitespace from lines
+  cleaned = cleaned.split('\n').map(line => line.trim()).join('\n');
+  
+  // Remove excessive spaces around punctuation
+  cleaned = cleaned.replace(/\s+([.,;:!?])/g, '$1');
+  cleaned = cleaned.replace(/([.,;:!?])\s+/g, '$1 ');
+  
+  return cleaned.trim();
+}
 
+/**
+ * Splits text into chunks with sentence-boundary awareness
+ */
 export function chunkText(text: string): string[] {
   const chunks: string[] = [];
-  let start = 0;
   
-  while (start < text.length) {
-    const end = Math.min(start + CHUNK_SIZE, text.length);
-    const chunk = text.slice(start, end).trim();
+  // Split on paragraph boundaries first (double newlines)
+  const paragraphs = text.split(/\n\n+/);
+  
+  let currentChunk = '';
+  
+  for (const paragraph of paragraphs) {
+    const trimmedParagraph = paragraph.trim();
+    if (!trimmedParagraph) continue;
     
-    if (chunk.length > 0) {
-      chunks.push(chunk);
+    // If adding this paragraph would exceed chunk size
+    if (currentChunk.length + trimmedParagraph.length > CHUNK_SIZE) {
+      // If we have content, save it
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        
+        // Start new chunk with overlap from previous chunk
+        const overlapText = getOverlapText(currentChunk, CHUNK_OVERLAP);
+        currentChunk = overlapText ? overlapText + '\n\n' + trimmedParagraph : trimmedParagraph;
+      } else {
+        // Paragraph itself is larger than chunk size, split by sentences
+        const sentences = splitIntoSentences(trimmedParagraph);
+        let sentenceChunk = '';
+        
+        for (const sentence of sentences) {
+          if (sentenceChunk.length + sentence.length > CHUNK_SIZE) {
+            if (sentenceChunk.length > 0) {
+              chunks.push(sentenceChunk.trim());
+              const overlapText = getOverlapText(sentenceChunk, CHUNK_OVERLAP);
+              sentenceChunk = overlapText ? overlapText + ' ' + sentence : sentence;
+            } else {
+              // Single sentence larger than chunk size, just add it
+              chunks.push(sentence.trim());
+              sentenceChunk = '';
+            }
+          } else {
+            sentenceChunk += (sentenceChunk ? ' ' : '') + sentence;
+          }
+        }
+        
+        if (sentenceChunk.length > 0) {
+          currentChunk = sentenceChunk;
+        }
+      }
+    } else {
+      // Add paragraph to current chunk
+      currentChunk += (currentChunk ? '\n\n' : '') + trimmedParagraph;
     }
-    
-    start += CHUNK_SIZE - CHUNK_OVERLAP;
   }
   
-  return chunks;
+  // Add the last chunk
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  // Filter out very small chunks (less than 50 characters)
+  return chunks.filter(chunk => chunk.length >= 50);
+}
+
+/**
+ * Splits text into sentences
+ */
+function splitIntoSentences(text: string): string[] {
+  // Split on sentence boundaries (., !, ?) followed by space and capital letter
+  // or end of string, but not on common abbreviations
+  const sentences: string[] = [];
+  const sentenceRegex = /[^.!?]+[.!?]+(?:\s+|$)/g;
+  let match;
+  
+  while ((match = sentenceRegex.exec(text)) !== null) {
+    sentences.push(match[0].trim());
+  }
+  
+  // If no matches, return the whole text as one sentence
+  if (sentences.length === 0) {
+    return [text];
+  }
+  
+  return sentences;
+}
+
+/**
+ * Gets the last N characters of text, trying to start at a sentence boundary
+ */
+function getOverlapText(text: string, targetLength: number): string {
+  if (text.length <= targetLength) {
+    return text;
+  }
+  
+  const startPos = text.length - targetLength;
+  const substring = text.substring(startPos);
+  
+  // Try to find a sentence boundary (., !, ?) in the overlap region
+  const sentenceBoundary = substring.search(/[.!?]\s+/);
+  
+  if (sentenceBoundary !== -1) {
+    return substring.substring(sentenceBoundary + 2).trim();
+  }
+  
+  // Otherwise, try to find a word boundary
+  const wordBoundary = substring.indexOf(' ');
+  if (wordBoundary !== -1) {
+    return substring.substring(wordBoundary + 1).trim();
+  }
+  
+  return substring.trim();
 }
 
 export async function extractTextFromPDF(filePath: string): Promise<string> {
@@ -34,7 +160,8 @@ export async function extractTextFromPDF(filePath: string): Promise<string> {
   const result = await parser.getText();
   await parser.destroy();
 
-  return result.text;
+  // Clean the extracted text
+  return cleanPDFText(result.text);
 }
 
 export async function extractTextFromFile(filePath: string): Promise<string> {
@@ -44,8 +171,9 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
   if (ext === 'pdf') {
     return await extractTextFromPDF(filePath);
   } else {
-    // For text files, just read directly
-    return await file.text();
+    // For text files, read and clean
+    const text = await file.text();
+    return cleanPDFText(text); // Clean text files too
   }
 }
 
@@ -80,7 +208,7 @@ export async function ingestFile(
       console.log(`  Processing chunk ${i + 1}/${chunks.length}`);
       
       const embedding = await generateEmbedding(chunk);
-      insertDocument(db, filename, content, chunk, embedding);
+      insertDocument(db, filename, content, chunk, embedding, i, chunk.length);
     }
     
     console.log(`✓ Successfully processed: ${filename}`);

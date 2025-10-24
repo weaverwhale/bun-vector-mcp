@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { searchSimilar } from "./search.ts";
 import { generateAnswer } from "./llm.ts";
+import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from "../constants.ts";
 
 export interface RAGResult {
   answer: string;
@@ -15,8 +16,8 @@ export interface RAGResult {
 export async function askQuestion(
   db: Database,
   question: string,
-  topK: number = 3,
-  maxAnswerLength: number = 200,
+  topK: number = DEFAULT_TOP_K,
+  maxAnswerLength: number = MAX_ANSWER_TOKENS,
   systemPrompt?: string
 ): Promise<RAGResult> {
   // Step 1: Search for relevant documents

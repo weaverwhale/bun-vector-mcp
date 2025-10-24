@@ -14,6 +14,8 @@ export function initializeDatabase(): Database {
       content TEXT NOT NULL,
       chunk_text TEXT NOT NULL,
       embedding TEXT NOT NULL,
+      chunk_index INTEGER DEFAULT 0,
+      chunk_size INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL
     )
   `);
@@ -37,11 +39,13 @@ export function insertDocument(
   filename: string,
   content: string,
   chunk_text: string,
-  embedding: number[]
+  embedding: number[],
+  chunk_index: number = 0,
+  chunk_size: number = 0
 ): number {
   const stmt = db.prepare(`
-    INSERT INTO documents (filename, content, chunk_text, embedding, created_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO documents (filename, content, chunk_text, embedding, chunk_index, chunk_size, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -49,6 +53,8 @@ export function insertDocument(
     content,
     chunk_text,
     JSON.stringify(embedding),
+    chunk_index,
+    chunk_size,
     Date.now()
   );
   
@@ -57,7 +63,7 @@ export function insertDocument(
 
 export function getAllDocuments(db: Database): Document[] {
   const stmt = db.prepare(`
-    SELECT id, filename, content, chunk_text, embedding, created_at
+    SELECT id, filename, content, chunk_text, embedding, chunk_index, chunk_size, created_at
     FROM documents
   `);
   
@@ -67,6 +73,8 @@ export function getAllDocuments(db: Database): Document[] {
     content: string;
     chunk_text: string;
     embedding: string;
+    chunk_index: number;
+    chunk_size: number;
     created_at: number;
   }>;
   

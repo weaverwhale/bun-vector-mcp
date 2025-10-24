@@ -4,6 +4,8 @@ export interface Document {
   content: string;
   chunk_text: string;
   embedding: number[];
+  chunk_index: number;
+  chunk_size: number;
   created_at: number;
 }
 

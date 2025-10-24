@@ -114,10 +114,10 @@ const server = Bun.serve({
             );
           }
           
-          const topK = body.topK && typeof body.topK === "number" ? body.topK : 3;
+          const topK = body.topK && typeof body.topK === "number" ? body.topK : 8;
           const maxAnswerLength = body.maxAnswerLength && typeof body.maxAnswerLength === "number" 
             ? body.maxAnswerLength 
-            : 200;
+            : 800;
           const systemPrompt = body.systemPrompt && typeof body.systemPrompt === "string"
             ? body.systemPrompt
             : undefined;
