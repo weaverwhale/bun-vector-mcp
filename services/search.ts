@@ -3,6 +3,7 @@ import { getAllDocuments } from '../db/schema.ts';
 import { generateEmbedding } from './embeddings.ts';
 import type { SearchResult } from '../types/index.ts';
 import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from '../constants.ts';
+import { log } from '../utils/logger.ts';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -37,13 +38,23 @@ export async function searchSimilar(
   topK: number = DEFAULT_TOP_K,
   minSimilarity: number = SIMILARITY_THRESHOLD
 ): Promise<SearchResult[]> {
+  log(`[searchSimilar] Starting search for query: "${query}"`);
+  log(
+    `[searchSimilar] Parameters: topK=${topK}, minSimilarity=${minSimilarity}`
+  );
+
   // Generate embedding for the query
   const queryEmbedding = await generateEmbedding(query);
+  log(
+    `[searchSimilar] Generated embedding with ${queryEmbedding.length} dimensions`
+  );
 
   // Get all documents from database
   const documents = getAllDocuments(db);
+  log(`[searchSimilar] Found ${documents.length} documents in database`);
 
   if (documents.length === 0) {
+    log('[searchSimilar] No documents found, returning empty results');
     return [];
   }
 
@@ -59,7 +70,16 @@ export async function searchSimilar(
   results.sort((a, b) => b.similarity - a.similarity);
 
   // Filter by minimum similarity threshold and take top K
-  return results
+  const filteredResults = results
     .filter(result => result.similarity >= minSimilarity)
     .slice(0, topK);
+
+  log(`[searchSimilar] Returning ${filteredResults.length} results`);
+  if (filteredResults.length > 0) {
+    log(
+      `[searchSimilar] Top result: "${filteredResults[0]!.filename}" (similarity: ${filteredResults[0]!.similarity.toFixed(4)})`
+    );
+  }
+
+  return filteredResults;
 }
