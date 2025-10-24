@@ -7,10 +7,13 @@
     "dev": "bun --hot index.ts",
     "start": "bun index.ts",
     "feed": "bun scripts/feed.ts",
-    "mcp": "bun mcp-server.ts"
+    "mcp": "bun mcp-server.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prettier": "^3.6.2"
   },
   "peerDependencies": {
     "typescript": "^5"

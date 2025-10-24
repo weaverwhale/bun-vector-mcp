@@ -51,4 +51,3 @@ export interface AskResponse {
   question: string;
   took_ms: number;
 }
-

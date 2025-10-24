@@ -1,31 +1,33 @@
-import type { Database } from "bun:sqlite";
-import { getAllDocuments } from "../db/schema.ts";
-import { generateEmbedding } from "./embeddings.ts";
-import type { SearchResult } from "../types/index.ts";
-import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from "../constants.ts";
+import type { Database } from 'bun:sqlite';
+import { getAllDocuments } from '../db/schema.ts';
+import { generateEmbedding } from './embeddings.ts';
+import type { SearchResult } from '../types/index.ts';
+import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from '../constants.ts';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error(`Vectors must have the same length (query: ${a.length}, stored: ${b.length})`);
+    throw new Error(
+      `Vectors must have the same length (query: ${a.length}, stored: ${b.length})`
+    );
   }
-  
+
   let dotProduct = 0;
   let magnitudeA = 0;
   let magnitudeB = 0;
-  
+
   for (let i = 0; i < a.length; i++) {
     dotProduct += a[i]! * b[i]!;
     magnitudeA += a[i]! * a[i]!;
     magnitudeB += b[i]! * b[i]!;
   }
-  
+
   magnitudeA = Math.sqrt(magnitudeA);
   magnitudeB = Math.sqrt(magnitudeB);
-  
+
   if (magnitudeA === 0 || magnitudeB === 0) {
     return 0;
   }
-  
+
   return dotProduct / (magnitudeA * magnitudeB);
 }
 
@@ -37,28 +39,27 @@ export async function searchSimilar(
 ): Promise<SearchResult[]> {
   // Generate embedding for the query
   const queryEmbedding = await generateEmbedding(query);
-  
+
   // Get all documents from database
   const documents = getAllDocuments(db);
-  
+
   if (documents.length === 0) {
     return [];
   }
-  
+
   // Calculate similarity for each document
   const results = documents.map(doc => ({
     id: doc.id,
     filename: doc.filename,
     chunk_text: doc.chunk_text,
-    similarity: cosineSimilarity(queryEmbedding, doc.embedding)
+    similarity: cosineSimilarity(queryEmbedding, doc.embedding),
   }));
-  
+
   // Sort by similarity (descending)
   results.sort((a, b) => b.similarity - a.similarity);
-  
+
   // Filter by minimum similarity threshold and take top K
   return results
     .filter(result => result.similarity >= minSimilarity)
     .slice(0, topK);
 }
-

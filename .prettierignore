@@ -1,0 +1,17 @@
+node_modules
+dist
+build
+coverage
+*.db
+*.lock
+bun.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.git
+.next
+.nuxt
+.vscode
+.idea
+*.log
+

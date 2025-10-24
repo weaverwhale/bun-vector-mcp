@@ -1,54 +1,53 @@
-import { initializeDatabase, clearDatabase } from "../db/schema.ts";
-import { initializeEmbeddings } from "../services/embeddings.ts";
-import { ingestDirectory } from "../services/ingest.ts";
+import { initializeDatabase, clearDatabase } from '../db/schema.ts';
+import { initializeEmbeddings } from '../services/embeddings.ts';
+import { ingestDirectory } from '../services/ingest.ts';
 
-const SOURCE_DIR = "./source";
+const SOURCE_DIR = './source';
 
 async function main() {
-  console.log("=== Vector Database Feed Script ===\n");
-  
+  console.log('=== Vector Database Feed Script ===\n');
+
   // Initialize database
   const db = initializeDatabase();
-  
+
   // Clear existing data
   clearDatabase(db);
-  
+
   // Initialize embeddings model
   await initializeEmbeddings();
-  
+
   // Get source directory from command line or use default
   const sourceDir = process.argv[2] || SOURCE_DIR;
   console.log(`Source directory: ${sourceDir}\n`);
-  
+
   // Ingest all files from directory
   const results = await ingestDirectory(db, sourceDir);
-  
+
   // Print summary
-  console.log("\n=== Ingestion Summary ===");
+  console.log('\n=== Ingestion Summary ===');
   console.log(`Total files processed: ${results.length}`);
-  
+
   const successful = results.filter(r => r.success);
   const failed = results.filter(r => !r.success);
-  
+
   console.log(`Successful: ${successful.length}`);
   console.log(`Failed: ${failed.length}`);
-  
+
   const totalChunks = successful.reduce((sum, r) => sum + r.chunks_created, 0);
   console.log(`Total chunks created: ${totalChunks}`);
-  
+
   if (failed.length > 0) {
-    console.log("\nFailed files:");
+    console.log('\nFailed files:');
     failed.forEach(f => {
       console.log(`  - ${f.filename}: ${f.error}`);
     });
   }
-  
+
   db.close();
-  console.log("\n✓ Feed complete!");
+  console.log('\n✓ Feed complete!');
 }
 
 main().catch(error => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });
-
