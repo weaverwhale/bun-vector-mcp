@@ -2,7 +2,8 @@ import { Database } from 'bun:sqlite';
 import type { Document } from '../types/index.ts';
 import { log } from '../utils/logger.ts';
 
-const DB_PATH = './vector.db';
+const DB_PATH = process.env.DB_PATH || './vector.db';
+console.log(`Using database at: ${DB_PATH}`);
 
 export function initializeDatabase(): Database {
   const db = new Database(DB_PATH, { create: true });

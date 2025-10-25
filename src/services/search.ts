@@ -2,7 +2,7 @@ import type { Database } from 'bun:sqlite';
 import { getAllDocuments } from '../db/schema.ts';
 import { generateEmbedding } from './embeddings.ts';
 import type { SearchResult } from '../types/index.ts';
-import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from '../constants.ts';
+import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from '../constants/rag.ts';
 import { log } from '../utils/logger.ts';
 
 export function cosineSimilarity(a: number[], b: number[]): number {

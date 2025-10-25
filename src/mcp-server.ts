@@ -12,7 +12,7 @@ import { initializeEmbeddings } from './services/embeddings.ts';
 import { initializeLLM } from './services/llm.ts';
 import { searchSimilar } from './services/search.ts';
 import { askQuestion } from './services/rag.ts';
-import { EMBEDDING_MODEL, LLM_MODEL } from './constants.ts';
+import { EMBEDDING_MODEL, LLM_MODEL } from './constants/providers.ts';
 
 // Initialize database, embeddings, and LLM
 const db = initializeDatabase();

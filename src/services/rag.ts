@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { searchSimilar } from './search.ts';
 import { generateAnswer } from './llm.ts';
-import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from '../constants.ts';
+import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from '../constants/rag.ts';
 import { log } from '../utils/logger.ts';
 
 export interface RAGResult {

@@ -168,7 +168,7 @@ Search for similar documents
 ## Project Structure
 
 ```text
-.
+/src/
 ├── db/
 │   └── schema.ts         # Database schema and operations
 ├── services/

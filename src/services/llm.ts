@@ -4,12 +4,11 @@ import { createOpenAI } from '@ai-sdk/openai';
 import {
   PROVIDER_TYPE,
   LLM_MODEL,
-  MAX_ANSWER_TOKENS,
-  GENERATION_TEMPERATURE,
-  DEFAULT_SYSTEM_PROMPT,
   AI_BASE_URL,
   AI_API_KEY,
-} from '../constants.ts';
+} from '../constants/providers.ts';
+import { MAX_ANSWER_TOKENS, GENERATION_TEMPERATURE } from '../constants/rag.ts';
+import { DEFAULT_SYSTEM_PROMPT } from '../constants/prompts.ts';
 import { log, error } from '../utils/logger.ts';
 
 // Configure transformers to use local models

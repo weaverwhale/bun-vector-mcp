@@ -3,7 +3,7 @@ import { insertDocument } from '../db/schema.ts';
 import { generateEmbedding } from './embeddings.ts';
 import type { IngestResult } from '../types/index.ts';
 import { PDFParse } from 'pdf-parse';
-import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants.ts';
+import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag.ts';
 
 /**
  * Cleans PDF text by removing common artifacts and normalizing whitespace

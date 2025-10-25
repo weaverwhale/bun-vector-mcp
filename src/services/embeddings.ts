@@ -6,7 +6,7 @@ import {
   EMBEDDING_MODEL,
   AI_BASE_URL,
   AI_API_KEY,
-} from '../constants.ts';
+} from '../constants/providers.ts';
 import { log, error } from '../utils/logger.ts';
 
 // Configure transformers to use local models

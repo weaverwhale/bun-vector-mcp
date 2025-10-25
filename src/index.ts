@@ -12,15 +12,13 @@ import type {
 import indexHtml from './index.html';
 
 // Initialize on startup
-console.log('Initializing vector database...');
 const db = initializeDatabase();
 await initializeEmbeddings();
 await initializeLLM();
-console.log('Ready!\n');
 
 const server = Bun.serve({
   port: 1738,
-  idleTimeout: 120, // Increase timeout for LLM generation (120 seconds)
+  idleTimeout: 120,
   routes: {
     '/': {
       GET: () => {
