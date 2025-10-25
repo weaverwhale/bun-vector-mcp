@@ -6,6 +6,9 @@ import { SOURCE_DIR } from '../constants/dirs.ts';
 async function main() {
   console.log('=== Vector Database Feed Script ===\n');
 
+  // Start timer
+  const startTime = performance.now();
+
   // Initialize database
   const db = initializeDatabase();
 
@@ -22,6 +25,10 @@ async function main() {
   // Ingest all files from directory
   const results = await ingestDirectory(db, sourceDir);
 
+  // Calculate elapsed time
+  const endTime = performance.now();
+  const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
+
   // Print summary
   console.log('\n=== Ingestion Summary ===');
   console.log(`Total files processed: ${results.length}`);
@@ -34,6 +41,7 @@ async function main() {
 
   const totalChunks = successful.reduce((sum, r) => sum + r.chunks_created, 0);
   console.log(`Total chunks created: ${totalChunks}`);
+  console.log(`\nTime elapsed: ${elapsedSeconds}s`);
 
   if (failed.length > 0) {
     console.log('\nFailed files:');
