@@ -259,7 +259,7 @@ const server = Bun.serve({
     },
   },
   development: {
-    hmr: false,
+    hmr: true,
   },
 });
 
