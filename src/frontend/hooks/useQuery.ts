@@ -10,6 +10,7 @@ const API_URL = 'http://localhost:1738';
 
 interface UseQueryState {
   isLoading: boolean;
+  isStreaming: boolean;
   answer: string;
   sources: Source[];
   results: Source[];
@@ -20,6 +21,7 @@ interface UseQueryState {
 export function useQuery() {
   const [state, setState] = useState<UseQueryState>({
     isLoading: false,
+    isStreaming: false,
     answer: '',
     sources: [],
     results: [],
@@ -30,6 +32,7 @@ export function useQuery() {
   const askQuestionStream = async (question: string) => {
     setState({
       isLoading: true,
+      isStreaming: false,
       answer: '',
       sources: [],
       results: [],
@@ -80,7 +83,8 @@ export function useQuery() {
               sources = event.sources || [];
               setState(prev => ({
                 ...prev,
-                isLoading: false,
+                isLoading: true,
+                isStreaming: false,
                 sources,
                 answer: '',
               }));
@@ -89,6 +93,7 @@ export function useQuery() {
               setState(prev => ({
                 ...prev,
                 isLoading: false,
+                isStreaming: true,
                 answer: currentAnswer,
                 sources,
               }));
@@ -96,6 +101,7 @@ export function useQuery() {
               setState(prev => ({
                 ...prev,
                 isLoading: false,
+                isStreaming: false,
                 answer: currentAnswer,
                 sources,
                 took_ms: event.took_ms || null,
@@ -114,6 +120,7 @@ export function useQuery() {
       setState(prev => ({
         ...prev,
         isLoading: false,
+        isStreaming: false,
         error: error instanceof Error ? error.message : String(error),
       }));
     }
@@ -122,6 +129,7 @@ export function useQuery() {
   const askQuestion = async (question: string) => {
     setState({
       isLoading: true,
+      isStreaming: false,
       answer: '',
       sources: [],
       results: [],
@@ -145,6 +153,7 @@ export function useQuery() {
       const data: AskResponse = await response.json();
       setState({
         isLoading: false,
+        isStreaming: false,
         answer: data.answer,
         sources: data.sources,
         results: [],
@@ -155,6 +164,7 @@ export function useQuery() {
       setState(prev => ({
         ...prev,
         isLoading: false,
+        isStreaming: false,
         error: error instanceof Error ? error.message : String(error),
       }));
     }
@@ -163,6 +173,7 @@ export function useQuery() {
   const searchDocuments = async (query: string) => {
     setState({
       isLoading: true,
+      isStreaming: false,
       answer: '',
       sources: [],
       results: [],
@@ -186,6 +197,7 @@ export function useQuery() {
       const data: SearchResponse = await response.json();
       setState({
         isLoading: false,
+        isStreaming: false,
         answer: '',
         sources: [],
         results: data.results,
@@ -196,6 +208,7 @@ export function useQuery() {
       setState(prev => ({
         ...prev,
         isLoading: false,
+        isStreaming: false,
         error: error instanceof Error ? error.message : String(error),
       }));
     }

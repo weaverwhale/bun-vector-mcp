@@ -1,8 +1,132 @@
 @import 'tailwindcss';
 
+/* Theme Variables */
+:root {
+  /* Light Mode - Professional Enterprise Colors */
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --bg-accent: #e9ecef;
+
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-tertiary: #6c757d;
+
+  --border-primary: #dee2e6;
+  --border-secondary: #e9ecef;
+
+  --accent-primary: #4a5568;
+  --accent-secondary: #718096;
+  --accent-hover: #2d3748;
+
+  --success: #38a169;
+  --error: #e53e3e;
+  --warning: #dd6b20;
+  --info: #3182ce;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+[data-theme='dark'] {
+  /* Dark Mode - Professional Colors */
+  --bg-primary: #1a1d23;
+  --bg-secondary: #252932;
+  --bg-tertiary: #2d333e;
+  --bg-accent: #373e4c;
+
+  --text-primary: #e4e6eb;
+  --text-secondary: #b8bcc4;
+  --text-tertiary: #8b92a0;
+
+  --border-primary: #3a4150;
+  --border-secondary: #2d333e;
+
+  --accent-primary: #6b7c9e;
+  --accent-secondary: #8696b5;
+  --accent-hover: #879ec5;
+
+  --success: #48bb78;
+  --error: #fc8181;
+  --warning: #ed8936;
+  --info: #4299e1;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Global Transitions */
+* {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-secondary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
 /* Custom markdown styling */
 .markdown-content {
-  color: #333;
+  color: var(--text-primary);
   line-height: 1.6;
 }
 
@@ -15,6 +139,7 @@
   margin-top: 1em;
   margin-bottom: 0.5em;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .markdown-content h1 {
@@ -31,12 +156,14 @@
 
 .markdown-content p {
   margin-bottom: 1em;
+  color: var(--text-secondary);
 }
 
 .markdown-content ul,
 .markdown-content ol {
   margin-bottom: 1em;
   padding-left: 2em;
+  color: var(--text-secondary);
 }
 
 .markdown-content li {
@@ -44,7 +171,8 @@
 }
 
 .markdown-content code {
-  background: #e9ecef;
+  background: var(--bg-accent);
+  color: var(--text-primary);
   padding: 2px 6px;
   border-radius: 3px;
   font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
@@ -52,12 +180,13 @@
 }
 
 .markdown-content pre {
-  background: #2d2d2d;
-  color: #f8f8f2;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   padding: 15px;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   margin-bottom: 1em;
+  border: 1px solid var(--border-primary);
 }
 
 .markdown-content pre code {
@@ -67,15 +196,16 @@
 }
 
 .markdown-content blockquote {
-  border-left: 4px solid #ddd;
+  border-left: 4px solid var(--accent-primary);
   padding-left: 1em;
   margin-left: 0;
-  color: #666;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
 .markdown-content strong {
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .markdown-content em {
@@ -83,7 +213,7 @@
 }
 
 .markdown-content a {
-  color: #007bff;
+  color: var(--info);
   text-decoration: none;
 }
 
@@ -99,12 +229,14 @@
 
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-primary);
   padding: 8px;
   text-align: left;
+  color: var(--text-secondary);
 }
 
 .markdown-content th {
-  background: #f8f9fa;
+  background: var(--bg-accent);
   font-weight: 600;
+  color: var(--text-primary);
 }

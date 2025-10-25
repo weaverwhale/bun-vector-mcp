@@ -2,15 +2,20 @@ import { useState } from 'react';
 import type { QueryMode } from '../types/index';
 import { QueryInput } from './components/QueryInput';
 import { ResponseDisplay } from './components/ResponseDisplay';
+import { ThemeToggle } from './components/ThemeToggle';
 import { useQuery } from './hooks/useQuery';
+import { useDarkMode } from './hooks/useDarkMode';
 
 export function App() {
   const [mode, setMode] = useState<QueryMode>('ask');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [query, setQuery] = useState('What is the conjugate method?');
 
+  const { isDarkMode, toggleTheme } = useDarkMode();
+
   const {
     isLoading,
+    isStreaming,
     answer,
     sources,
     results,
@@ -43,14 +48,34 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-12 px-5">
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-3xl font-semibold text-gray-800 mb-2.5">
-          Vector Database RAG
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Ask questions and get answers from your document collection
-        </p>
+    <div
+      className="min-h-screen py-12 px-5 transition-colors duration-200"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+      }}
+    >
+      <div
+        className="max-w-4xl mx-auto p-8 rounded-lg transition-all duration-200"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--border-primary)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1
+              className="text-3xl font-semibold mb-2"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Vector Database RAG
+            </h1>
+            <p style={{ color: 'var(--text-tertiary)' }}>
+              Ask questions and get answers from your document collection
+            </p>
+          </div>
+          <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleTheme} />
+        </div>
 
         <QueryInput
           mode={mode}
@@ -65,6 +90,7 @@ export function App() {
 
         <ResponseDisplay
           isLoading={isLoading}
+          isStreaming={isStreaming}
           error={error}
           answer={answer}
           sources={sources}

@@ -28,42 +28,87 @@ export function QueryInput({
   };
 
   return (
-    <div>
-      <div className="flex gap-4 mb-5 p-4 bg-gray-50 rounded-md">
-        <label className="flex items-center cursor-pointer">
+    <div className="mb-8">
+      <div
+        className="flex gap-4 mb-5 p-4 rounded-lg"
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          border: '1px solid var(--border-secondary)',
+        }}
+      >
+        <label className="flex items-center cursor-pointer group">
           <input
             type="radio"
             name="mode"
             value="ask"
             checked={mode === 'ask'}
             onChange={e => setMode(e.currentTarget.value as QueryMode)}
-            className="mr-1.5 cursor-pointer"
+            className="mr-2 cursor-pointer w-4 h-4 accent-current"
+            style={{ accentColor: 'var(--accent-primary)' }}
           />
-          🤖 Ask (RAG)
+          <span
+            className="transition-colors"
+            style={{
+              color:
+                mode === 'ask'
+                  ? 'var(--text-primary)'
+                  : 'var(--text-secondary)',
+              fontWeight: mode === 'ask' ? 600 : 400,
+            }}
+          >
+            Ask (RAG)
+          </span>
         </label>
-        <label className="flex items-center cursor-pointer">
+        <label className="flex items-center cursor-pointer group">
           <input
             type="radio"
             name="mode"
             value="search"
             checked={mode === 'search'}
             onChange={e => setMode(e.currentTarget.value as QueryMode)}
-            className="mr-1.5 cursor-pointer"
+            className="mr-2 cursor-pointer w-4 h-4"
+            style={{ accentColor: 'var(--accent-primary)' }}
           />
-          🔍 Search (Similarity)
+          <span
+            className="transition-colors"
+            style={{
+              color:
+                mode === 'search'
+                  ? 'var(--text-primary)'
+                  : 'var(--text-secondary)',
+              fontWeight: mode === 'search' ? 600 : 400,
+            }}
+          >
+            Search (Similarity)
+          </span>
         </label>
       </div>
 
       {mode === 'ask' && (
-        <div className="flex gap-4 mb-5 p-4 bg-gray-50 rounded-md">
+        <div
+          className="flex gap-4 mb-5 p-4 rounded-lg"
+          style={{
+            backgroundColor: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-secondary)',
+          }}
+        >
           <label className="flex items-center cursor-pointer">
             <input
               type="checkbox"
               checked={streamingEnabled}
               onChange={e => setStreamingEnabled(e.currentTarget.checked)}
-              className="mr-1.5 cursor-pointer"
+              className="mr-2 cursor-pointer w-4 h-4"
+              style={{ accentColor: 'var(--accent-primary)' }}
             />
-            ⚡ Enable Streaming
+            <span
+              className="transition-colors"
+              style={{
+                color: 'var(--text-secondary)',
+                fontWeight: 500,
+              }}
+            >
+              Enable Streaming
+            </span>
           </label>
         </div>
       )}
@@ -71,7 +116,8 @@ export function QueryInput({
       <div className="mb-5">
         <label
           htmlFor="question"
-          className="block mb-1.5 text-gray-700 font-medium"
+          className="block mb-2 font-medium"
+          style={{ color: 'var(--text-primary)' }}
         >
           {mode === 'ask' ? 'Your Question:' : 'Search Query:'}
         </label>
@@ -86,21 +132,78 @@ export function QueryInput({
               ? 'e.g., What is the conjugate method?'
               : 'e.g., conjugate method'
           }
-          className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            border: '2px solid var(--border-primary)',
+          }}
+          onFocus={e => {
+            e.target.style.borderColor = 'var(--accent-primary)';
+            e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = 'var(--border-primary)';
+            e.target.style.boxShadow = 'none';
+          }}
         />
       </div>
 
-      <div className="flex gap-2.5 mb-5">
+      <div className="flex gap-2.5">
         <button
           onClick={onSubmit}
           disabled={isLoading}
-          className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md text-base font-medium transition-colors hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex-1 px-6 py-3 rounded-lg text-base font-medium transition-all duration-200 flex items-center justify-center gap-2"
+          style={{
+            backgroundColor: isLoading
+              ? 'var(--accent-secondary)'
+              : 'var(--accent-primary)',
+            color: 'var(--bg-secondary)',
+            opacity: isLoading ? 0.7 : 1,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            boxShadow: isLoading ? 'none' : 'var(--shadow-sm)',
+          }}
+          onMouseEnter={e => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }
+          }}
+          onMouseLeave={e => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = 'var(--accent-primary)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            }
+          }}
         >
+          {isLoading && (
+            <svg
+              className="spinner"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          )}
           {mode === 'ask'
             ? streamingEnabled
-              ? '⚡ Ask Question (Streaming)'
-              : '🤖 Ask Question'
-            : '🔍 Search Documents'}
+              ? isLoading
+                ? 'Generating...'
+                : 'Ask Question (Streaming)'
+              : isLoading
+                ? 'Generating...'
+                : 'Ask Question'
+            : isLoading
+              ? 'Searching...'
+              : 'Search Documents'}
         </button>
       </div>
     </div>
