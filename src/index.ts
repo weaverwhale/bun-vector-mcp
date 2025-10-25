@@ -10,6 +10,7 @@ import type {
   AskResponse,
 } from './types/index.ts';
 import indexHtml from './index.html';
+import { DEFAULT_TOP_K } from './constants/rag.ts';
 
 // Initialize on startup
 const db = initializeDatabase();
@@ -73,7 +74,9 @@ const server = Bun.serve({
           }
 
           const topK =
-            body.topK && typeof body.topK === 'number' ? body.topK : 5;
+            body.topK && typeof body.topK === 'number'
+              ? body.topK
+              : DEFAULT_TOP_K;
 
           const startTime = performance.now();
           const results = await searchSimilar(db, body.query, topK);
@@ -121,7 +124,9 @@ const server = Bun.serve({
           }
 
           const topK =
-            body.topK && typeof body.topK === 'number' ? body.topK : 8;
+            body.topK && typeof body.topK === 'number'
+              ? body.topK
+              : DEFAULT_TOP_K;
           const maxAnswerLength =
             body.maxAnswerLength && typeof body.maxAnswerLength === 'number'
               ? body.maxAnswerLength

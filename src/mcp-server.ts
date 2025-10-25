@@ -13,6 +13,7 @@ import { initializeLLM } from './services/llm.ts';
 import { searchSimilar } from './services/search.ts';
 import { askQuestion } from './services/rag.ts';
 import { EMBEDDING_MODEL, LLM_MODEL } from './constants/providers.ts';
+import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from './constants/rag.ts';
 
 // Initialize database, embeddings, and LLM
 const db = initializeDatabase();
@@ -48,8 +49,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             topK: {
               type: 'number',
-              description: 'Number of results to return (default: 5)',
-              default: 5,
+              description: `Number of results to return (default: ${DEFAULT_TOP_K})`,
+              default: DEFAULT_TOP_K,
             },
           },
           required: ['query'],
@@ -77,15 +78,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             topK: {
               type: 'number',
-              description:
-                'Number of relevant documents to use as context (default: 3)',
-              default: 3,
+              description: `Number of relevant documents to use as context (default: ${DEFAULT_TOP_K})`,
+              default: DEFAULT_TOP_K,
             },
             maxAnswerLength: {
               type: 'number',
-              description:
-                'Maximum length of the answer in tokens (default: 200)',
-              default: 200,
+              description: `Maximum length of the answer in tokens (default: ${MAX_ANSWER_TOKENS})`,
+              default: MAX_ANSWER_TOKENS,
             },
             systemPrompt: {
               type: 'string',
@@ -107,7 +106,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     switch (name) {
       case 'vector_search': {
         const query = args?.query as string;
-        const topK = (args?.topK as number) || 5;
+        const topK = (args?.topK as number) || DEFAULT_TOP_K;
 
         if (!query) {
           throw new Error('Query parameter is required');
@@ -159,8 +158,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case 'vector_ask': {
         const question = args?.question as string;
-        const topK = (args?.topK as number) || 3;
-        const maxAnswerLength = (args?.maxAnswerLength as number) || 200;
+        const topK = (args?.topK as number) || DEFAULT_TOP_K;
+        const maxAnswerLength =
+          (args?.maxAnswerLength as number) || MAX_ANSWER_TOKENS;
         const systemPrompt = args?.systemPrompt as string | undefined;
 
         if (!question) {
