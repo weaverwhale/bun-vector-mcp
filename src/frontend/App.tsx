@@ -10,6 +10,8 @@ export function App() {
   const [mode, setMode] = useState<QueryMode>('ask');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [query, setQuery] = useState('What is the conjugate method?');
+  const [topK, setTopK] = useState(8);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.3);
 
   const { isDarkMode, toggleTheme } = useDarkMode();
 
@@ -38,12 +40,12 @@ export function App() {
 
     if (mode === 'ask') {
       if (streamingEnabled) {
-        askQuestionStream(query);
+        askQuestionStream(query, topK, similarityThreshold);
       } else {
-        askQuestion(query);
+        askQuestion(query, topK, similarityThreshold);
       }
     } else {
-      searchDocuments(query);
+      searchDocuments(query, topK, similarityThreshold);
     }
   };
 
@@ -84,6 +86,10 @@ export function App() {
           setStreamingEnabled={setStreamingEnabled}
           query={query}
           setQuery={setQuery}
+          topK={topK}
+          setTopK={setTopK}
+          similarityThreshold={similarityThreshold}
+          setSimilarityThreshold={setSimilarityThreshold}
           onSubmit={handleSubmit}
           isLoading={isLoading}
         />

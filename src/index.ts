@@ -12,7 +12,7 @@ import type {
   StreamEvent,
 } from './types/index';
 import indexHtml from './frontend/index.html';
-import { DEFAULT_TOP_K } from './constants/rag';
+import { DEFAULT_TOP_K, SIMILARITY_THRESHOLD } from './constants/rag';
 
 // Initialize on startup
 const db = initializeDatabase();
@@ -80,8 +80,19 @@ const server = Bun.serve({
               ? body.topK
               : DEFAULT_TOP_K;
 
+          const similarityThreshold =
+            body.similarityThreshold &&
+            typeof body.similarityThreshold === 'number'
+              ? body.similarityThreshold
+              : SIMILARITY_THRESHOLD;
+
           const startTime = performance.now();
-          const results = await searchSimilar(db, body.query, topK);
+          const results = await searchSimilar(
+            db,
+            body.query,
+            topK,
+            similarityThreshold
+          );
           const endTime = performance.now();
 
           const response: SearchResponse = {
@@ -129,6 +140,11 @@ const server = Bun.serve({
             body.topK && typeof body.topK === 'number'
               ? body.topK
               : DEFAULT_TOP_K;
+          const similarityThreshold =
+            body.similarityThreshold &&
+            typeof body.similarityThreshold === 'number'
+              ? body.similarityThreshold
+              : SIMILARITY_THRESHOLD;
           const maxAnswerLength =
             body.maxAnswerLength && typeof body.maxAnswerLength === 'number'
               ? body.maxAnswerLength
@@ -144,7 +160,8 @@ const server = Bun.serve({
             body.question,
             topK,
             maxAnswerLength,
-            systemPrompt
+            systemPrompt,
+            similarityThreshold
           );
           const endTime = performance.now();
 
@@ -192,6 +209,11 @@ const server = Bun.serve({
             body.topK && typeof body.topK === 'number'
               ? body.topK
               : DEFAULT_TOP_K;
+          const similarityThreshold =
+            body.similarityThreshold &&
+            typeof body.similarityThreshold === 'number'
+              ? body.similarityThreshold
+              : SIMILARITY_THRESHOLD;
           const maxAnswerLength =
             body.maxAnswerLength && typeof body.maxAnswerLength === 'number'
               ? body.maxAnswerLength
@@ -212,7 +234,8 @@ const server = Bun.serve({
                   body.question,
                   topK,
                   maxAnswerLength,
-                  systemPrompt
+                  systemPrompt,
+                  similarityThreshold
                 )) {
                   // Format as SSE: data: {json}\n\n
                   const sseMessage = `data: ${JSON.stringify(event)}\n\n`;

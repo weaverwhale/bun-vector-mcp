@@ -7,6 +7,10 @@ interface QueryInputProps {
   setStreamingEnabled: (enabled: boolean) => void;
   query: string;
   setQuery: (query: string) => void;
+  topK: number;
+  setTopK: (topK: number) => void;
+  similarityThreshold: number;
+  setSimilarityThreshold: (threshold: number) => void;
   onSubmit: () => void;
   isLoading: boolean;
 }
@@ -18,6 +22,10 @@ export function QueryInput({
   setStreamingEnabled,
   query,
   setQuery,
+  topK,
+  setTopK,
+  similarityThreshold,
+  setSimilarityThreshold,
   onSubmit,
   isLoading,
 }: QueryInputProps) {
@@ -112,6 +120,69 @@ export function QueryInput({
           </label>
         </div>
       )}
+
+      {/* Advanced Settings */}
+      <div
+        className="mb-5 p-4 rounded-lg"
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          border: '1px solid var(--border-secondary)',
+        }}
+      >
+        <div className="mb-3">
+          <label
+            className="block mb-2 font-medium text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Top K Results: {topK}
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value={topK}
+            onChange={e => setTopK(Number(e.currentTarget.value))}
+            className="w-full"
+            style={{ accentColor: 'var(--accent-primary)' }}
+          />
+          <div
+            className="flex justify-between text-xs mt-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            <span>1</span>
+            <span>20</span>
+          </div>
+        </div>
+
+        <div>
+          <label
+            className="block mb-2 font-medium text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Similarity Threshold: {similarityThreshold.toFixed(2)}
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={similarityThreshold}
+            onChange={e =>
+              setSimilarityThreshold(Number(e.currentTarget.value))
+            }
+            className="w-full"
+            style={{ accentColor: 'var(--accent-primary)' }}
+          />
+          <div
+            className="flex justify-between text-xs mt-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            <span>0.0 (More results)</span>
+            <span>1.0 (More relevant)</span>
+          </div>
+        </div>
+      </div>
 
       <div className="mb-5">
         <label

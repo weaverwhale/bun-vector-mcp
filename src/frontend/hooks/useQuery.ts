@@ -29,7 +29,11 @@ export function useQuery() {
     error: null,
   });
 
-  const askQuestionStream = async (question: string) => {
+  const askQuestionStream = async (
+    question: string,
+    topK?: number,
+    similarityThreshold?: number
+  ) => {
     setState({
       isLoading: true,
       isStreaming: false,
@@ -49,7 +53,7 @@ export function useQuery() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, topK, similarityThreshold }),
       });
 
       if (!response.ok) {
@@ -126,7 +130,11 @@ export function useQuery() {
     }
   };
 
-  const askQuestion = async (question: string) => {
+  const askQuestion = async (
+    question: string,
+    topK?: number,
+    similarityThreshold?: number
+  ) => {
     setState({
       isLoading: true,
       isStreaming: false,
@@ -143,7 +151,7 @@ export function useQuery() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, topK, similarityThreshold }),
       });
 
       if (!response.ok) {
@@ -170,7 +178,11 @@ export function useQuery() {
     }
   };
 
-  const searchDocuments = async (query: string) => {
+  const searchDocuments = async (
+    query: string,
+    topK?: number,
+    similarityThreshold?: number
+  ) => {
     setState({
       isLoading: true,
       isStreaming: false,
@@ -187,7 +199,7 @@ export function useQuery() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, topK, similarityThreshold }),
       });
 
       if (!response.ok) {

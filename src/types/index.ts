@@ -14,6 +14,7 @@ export interface Document {
 export interface SearchRequest {
   query: string;
   topK?: number;
+  similarityThreshold?: number;
 }
 
 export interface SearchResult {
@@ -39,6 +40,7 @@ export interface IngestResult {
 export interface AskRequest {
   question: string;
   topK?: number;
+  similarityThreshold?: number;
   maxAnswerLength?: number;
   systemPrompt?: string;
 }

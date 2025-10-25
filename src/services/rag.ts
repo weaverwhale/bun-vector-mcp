@@ -1,7 +1,11 @@
 import type { Database } from 'bun:sqlite';
 import { searchSimilar } from './search';
 import { generateAnswer, streamAnswer } from './llm';
-import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from '../constants/rag';
+import {
+  DEFAULT_TOP_K,
+  MAX_ANSWER_TOKENS,
+  SIMILARITY_THRESHOLD,
+} from '../constants/rag';
 import { log } from '../utils/logger';
 import type { StreamEvent } from '../types/index';
 
@@ -20,16 +24,17 @@ export async function askQuestion(
   question: string,
   topK: number = DEFAULT_TOP_K,
   maxAnswerLength: number = MAX_ANSWER_TOKENS,
-  systemPrompt?: string
+  systemPrompt?: string,
+  minSimilarity: number = SIMILARITY_THRESHOLD
 ): Promise<RAGResult> {
   log(`[askQuestion] Question: "${question}"`);
   log(
-    `[askQuestion] Parameters: topK=${topK}, maxAnswerLength=${maxAnswerLength}${systemPrompt ? ', customSystemPrompt=true' : ''}`
+    `[askQuestion] Parameters: topK=${topK}, maxAnswerLength=${maxAnswerLength}, minSimilarity=${minSimilarity}${systemPrompt ? ', customSystemPrompt=true' : ''}`
   );
 
   // Step 1: Search for relevant documents
   log('[askQuestion] Step 1: Searching for relevant documents...');
-  const searchResults = await searchSimilar(db, question, topK);
+  const searchResults = await searchSimilar(db, question, topK, minSimilarity);
 
   if (searchResults.length === 0) {
     log('[askQuestion] No relevant documents found');
@@ -82,19 +87,25 @@ export async function* streamQuestion(
   question: string,
   topK: number = DEFAULT_TOP_K,
   maxAnswerLength: number = MAX_ANSWER_TOKENS,
-  systemPrompt?: string
+  systemPrompt?: string,
+  minSimilarity: number = SIMILARITY_THRESHOLD
 ): AsyncGenerator<StreamEvent, void, undefined> {
   const startTime = performance.now();
 
   log(`[streamQuestion] Question: "${question}"`);
   log(
-    `[streamQuestion] Parameters: topK=${topK}, maxAnswerLength=${maxAnswerLength}${systemPrompt ? ', customSystemPrompt=true' : ''}`
+    `[streamQuestion] Parameters: topK=${topK}, maxAnswerLength=${maxAnswerLength}, minSimilarity=${minSimilarity}${systemPrompt ? ', customSystemPrompt=true' : ''}`
   );
 
   try {
     // Step 1: Search for relevant documents
     log('[streamQuestion] Step 1: Searching for relevant documents...');
-    const searchResults = await searchSimilar(db, question, topK);
+    const searchResults = await searchSimilar(
+      db,
+      question,
+      topK,
+      minSimilarity
+    );
 
     if (searchResults.length === 0) {
       log('[streamQuestion] No relevant documents found');
