@@ -1,13 +1,13 @@
 # Vector MCP Server with Bun
 
-A type-safe vector database built with Bun, using SQLite for storage and **hybrid question-based embeddings** for superior semantic search.
+A type-safe vector database built with Bun, using SQLite for storage and hybrid question-based embeddings for superior semantic search.
 
 ## Features
 
 - 🚀 Built with Bun for maximum performance
 - 📊 SQLite-based storage using `bun:sqlite`
 - 🤖 Transformers or AI SDK integration with support for multiple providers
-- 🧠 **Hybrid Question-Based RAG** using Hypothetical Question Embedding (HQE)
+- 🧠 Hybrid Question-Based RAG using Hypothetical Question Embedding (HQE)
 - 📄 PDF and text file support
 - 🔍 Advanced semantic search via weighted hybrid similarity
 - 🛡️ Fully type-safe with TypeScript
@@ -117,7 +117,7 @@ This will:
 
 - Extract text from all PDF and TXT files
 - Split content into chunks (1400 chars with 400 char overlap)
-- **Generate 4 hypothetical questions per chunk using LLM**
+- Generate 4 hypothetical questions per chunk using LLM
 - Generate embeddings for content AND questions using your configured embedding model
 - Store everything in the SQLite database
 
