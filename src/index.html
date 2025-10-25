@@ -274,6 +274,18 @@
         </label>
       </div>
 
+      <div class="mode-toggle" id="streamToggleContainer">
+        <label>
+          <input
+            type="checkbox"
+            id="streamToggle"
+            checked
+            onchange="updateStreamMode()"
+          />
+          ⚡ Enable Streaming (recommended)
+        </label>
+      </div>
+
       <div class="input-group">
         <label for="question" id="inputLabel">Your Question:</label>
         <input
@@ -298,6 +310,7 @@
       const API_URL = 'http://localhost:1738';
       let isLoading = false;
       let currentMode = 'ask';
+      let streamingEnabled = true;
 
       function updateMode() {
         const mode = document.querySelector('input[name="mode"]:checked').value;
@@ -306,19 +319,33 @@
         const inputLabel = document.getElementById('inputLabel');
         const submitBtn = document.getElementById('submitBtn');
         const questionInput = document.getElementById('question');
+        const streamToggleContainer = document.getElementById(
+          'streamToggleContainer'
+        );
 
         if (mode === 'ask') {
           inputLabel.textContent = 'Your Question:';
-          submitBtn.textContent = '🤖 Ask Question';
+          submitBtn.textContent = streamingEnabled
+            ? '⚡ Ask Question (Streaming)'
+            : '🤖 Ask Question';
           questionInput.placeholder = 'e.g., What is the conjugate method?';
+          streamToggleContainer.style.display = 'block';
         } else {
           inputLabel.textContent = 'Search Query:';
-          submitBtn.textContent = '🔍 Search Documents';
+          submitBtn.textContent = streamingEnabled
+            ? '⚡ Search Documents (Streaming)'
+            : '🔍 Search Documents';
           questionInput.placeholder = 'e.g., conjugate method';
+          streamToggleContainer.style.display = 'none';
         }
 
         // Clear previous response when switching modes
         document.getElementById('response').innerHTML = '';
+      }
+
+      function updateStreamMode() {
+        streamingEnabled = document.getElementById('streamToggle').checked;
+        updateMode(); // Update button text
       }
 
       async function submitQuery() {
@@ -335,10 +362,144 @@
         }
 
         if (currentMode === 'ask') {
-          await askQuestion(questionInput);
+          if (streamingEnabled) {
+            await askQuestionStream(questionInput);
+          } else {
+            await askQuestion(questionInput);
+          }
         } else {
           await searchDocuments(questionInput);
         }
+      }
+
+      async function askQuestionStream(question) {
+        isLoading = true;
+        const responseDiv = document.getElementById('response');
+        responseDiv.innerHTML = `
+          <div class="response-container loading">
+            Searching for relevant documents...
+          </div>
+        `;
+
+        let currentAnswer = '';
+        let sources = [];
+        let startTime = Date.now();
+
+        try {
+          const response = await fetch(`${API_URL}/ask/stream`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              question: question,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (!line.trim() || !line.startsWith('data: ')) continue;
+
+              const jsonStr = line.slice(6); // Remove 'data: ' prefix
+              try {
+                const event = JSON.parse(jsonStr);
+
+                if (event.type === 'sources') {
+                  sources = event.sources;
+                  responseDiv.innerHTML = `
+                    <div class="response-container">
+                      <div class="answer">Generating answer...</div>
+                    </div>
+                  `;
+                } else if (event.type === 'chunk') {
+                  currentAnswer += event.text;
+                  const parsedAnswer = marked.parse(currentAnswer);
+                  displayStreamingResponse(parsedAnswer, sources, null, true);
+                } else if (event.type === 'done') {
+                  const parsedAnswer = marked.parse(currentAnswer);
+                  displayStreamingResponse(
+                    parsedAnswer,
+                    sources,
+                    event.took_ms,
+                    false
+                  );
+                } else if (event.type === 'error') {
+                  throw new Error(event.error);
+                }
+              } catch (e) {
+                if (e instanceof SyntaxError) {
+                  // Skip invalid JSON
+                  console.warn('Invalid JSON in SSE:', jsonStr);
+                } else {
+                  throw e;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          responseDiv.innerHTML = `<div class="response-container error">
+            <strong>Error:</strong> ${error.message}
+          </div>`;
+        } finally {
+          isLoading = false;
+        }
+      }
+
+      function displayStreamingResponse(
+        parsedAnswer,
+        sources,
+        took_ms,
+        streaming
+      ) {
+        const responseDiv = document.getElementById('response');
+
+        let sourcesHtml = '';
+        if (sources && sources.length > 0) {
+          sourcesHtml = `
+            <div class="sources">
+              <h3>Sources (${sources.length})</h3>
+              ${sources
+                .map(
+                  (source, idx) => `
+                <div class="source">
+                  <strong>${idx + 1}. ${source.filename}</strong>
+                  <br>
+                  <em>Similarity: ${(source.similarity * 100).toFixed(1)}%</em>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          `;
+        }
+
+        let metaHtml = '';
+        if (took_ms !== null) {
+          metaHtml = `<div class="meta">Response time: ${took_ms}ms</div>`;
+        }
+
+        responseDiv.innerHTML = `
+          <div class="response-container">
+            <div class="answer">${parsedAnswer}</div>
+            ${sourcesHtml}
+            ${metaHtml}
+          </div>
+        `;
       }
 
       async function askQuestion(question) {

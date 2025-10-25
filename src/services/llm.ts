@@ -1,5 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
-import { generateText } from 'ai';
+import { generateText, streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import {
   PROVIDER_TYPE,
@@ -128,6 +128,94 @@ export async function generateAnswer(
     } catch (err) {
       error('Error generating answer:', err);
       throw new Error(`Failed to generate answer: ${err}`);
+    }
+  } else {
+    throw new Error(`Unknown provider type: ${PROVIDER_TYPE}`);
+  }
+}
+
+/**
+ * Stream answer generation with support for both providers
+ * Yields text chunks progressively
+ */
+export async function* streamAnswer(
+  question: string,
+  context: string,
+  maxNewTokens: number = MAX_ANSWER_TOKENS,
+  systemPrompt?: string
+): AsyncGenerator<string, void, undefined> {
+  const system = systemPrompt || DEFAULT_SYSTEM_PROMPT;
+
+  if (PROVIDER_TYPE === 'transformers') {
+    // Transformers doesn't natively support streaming, so we simulate it
+    // by generating the full response and yielding it in chunks
+    if (!llmPipeline) {
+      await initializeLLM();
+    }
+
+    if (!llmPipeline) {
+      throw new Error('Failed to initialize LLM pipeline');
+    }
+
+    const prompt = `${system}\n\n${context}\n\n${question}`;
+
+    const result = await llmPipeline(prompt, {
+      max_new_tokens: maxNewTokens,
+      temperature: GENERATION_TEMPERATURE,
+      do_sample: true,
+      return_full_text: false,
+      repetition_penalty: 1.1,
+      top_p: 0.9,
+    });
+
+    const generatedText =
+      (result as any)[0]?.generated_text || "I couldn't generate an answer.";
+
+    let answer = generatedText.trim();
+
+    if (answer.includes('Provide a detailed')) {
+      const parts = answer.split(/(?:Provide a detailed|Answer:)/i);
+      answer = parts[parts.length - 1]?.trim() || answer;
+    }
+
+    answer = answer.replace(/^(?:Answer:|Response:)\s*/i, '').trim();
+
+    // Simulate streaming by yielding words one at a time
+    const words = answer.split(' ');
+    for (let i = 0; i < words.length; i++) {
+      yield i === 0 ? words[i] : ' ' + words[i];
+      // Small delay to simulate streaming
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+  } else if (PROVIDER_TYPE === 'ai-sdk') {
+    if (!aiProvider) {
+      await initializeLLM();
+    }
+
+    if (!aiProvider) {
+      throw new Error('Failed to initialize AI provider');
+    }
+
+    try {
+      const userPrompt = `${context}\n\n${question}`;
+
+      const result = streamText({
+        model: aiProvider.chat(LLM_MODEL),
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: GENERATION_TEMPERATURE,
+        topP: 0.9,
+      });
+
+      // Stream text deltas as they arrive
+      for await (const textPart of result.textStream) {
+        yield textPart;
+      }
+    } catch (err) {
+      error('Error streaming answer:', err);
+      throw new Error(`Failed to stream answer: ${err}`);
     }
   } else {
     throw new Error(`Unknown provider type: ${PROVIDER_TYPE}`);

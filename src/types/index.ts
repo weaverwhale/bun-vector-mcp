@@ -53,3 +53,14 @@ export interface AskResponse {
   question: string;
   took_ms: number;
 }
+
+// Streaming types
+export type StreamEvent =
+  | { type: 'sources'; sources: SearchResult[] }
+  | { type: 'chunk'; text: string }
+  | { type: 'done'; took_ms: number }
+  | { type: 'error'; error: string };
+
+export interface AskStreamRequest extends AskRequest {
+  stream?: boolean;
+}
