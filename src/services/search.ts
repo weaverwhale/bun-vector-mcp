@@ -2,7 +2,12 @@ import type { Database } from 'bun:sqlite';
 import { getAllDocuments } from '../db/schema.ts';
 import { generateEmbedding } from './embeddings.ts';
 import type { SearchResult } from '../types/index.ts';
-import { SIMILARITY_THRESHOLD, DEFAULT_TOP_K } from '../constants/rag.ts';
+import {
+  SIMILARITY_THRESHOLD,
+  DEFAULT_TOP_K,
+  QUESTION_WEIGHT,
+  CONTENT_WEIGHT,
+} from '../constants/rag.ts';
 import { log } from '../utils/logger.ts';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -38,7 +43,7 @@ export async function searchSimilar(
   topK: number = DEFAULT_TOP_K,
   minSimilarity: number = SIMILARITY_THRESHOLD
 ): Promise<SearchResult[]> {
-  log(`[searchSimilar] Starting search for query: "${query}"`);
+  log(`[searchSimilar] Starting hybrid search for query: "${query}"`);
   log(
     `[searchSimilar] Parameters: topK=${topK}, minSimilarity=${minSimilarity}`
   );
@@ -58,13 +63,33 @@ export async function searchSimilar(
     return [];
   }
 
-  // Calculate similarity for each document
-  const results = documents.map(doc => ({
-    id: doc.id,
-    filename: doc.filename,
-    chunk_text: doc.chunk_text,
-    similarity: cosineSimilarity(queryEmbedding, doc.embedding),
-  }));
+  // Calculate hybrid similarity for each document
+  const results = documents.map(doc => {
+    let maxQuestionSimilarity = 0;
+
+    // Calculate similarity against question embeddings if they exist
+    if (doc.question_embeddings && doc.question_embeddings.length > 0) {
+      for (const questionEmbedding of doc.question_embeddings) {
+        const similarity = cosineSimilarity(queryEmbedding, questionEmbedding);
+        maxQuestionSimilarity = Math.max(maxQuestionSimilarity, similarity);
+      }
+    }
+
+    // Calculate similarity against content embedding
+    const contentSimilarity = cosineSimilarity(queryEmbedding, doc.embedding);
+
+    // Weighted hybrid score
+    const hybridScore =
+      maxQuestionSimilarity * QUESTION_WEIGHT +
+      contentSimilarity * CONTENT_WEIGHT;
+
+    return {
+      id: doc.id,
+      filename: doc.filename,
+      chunk_text: doc.chunk_text,
+      similarity: hybridScore,
+    };
+  });
 
   // Sort by similarity (descending)
   results.sort((a, b) => b.similarity - a.similarity);

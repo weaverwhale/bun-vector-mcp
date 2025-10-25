@@ -1,14 +1,15 @@
 # Vector MCP Server with Bun
 
-A type-safe vector database built with Bun, using SQLite for storage and local embeddings for semantic search.
+A type-safe vector database built with Bun, using SQLite for storage and **hybrid question-based embeddings** for superior semantic search.
 
 ## Features
 
 - 🚀 Built with Bun for maximum performance
 - 📊 SQLite-based storage using `bun:sqlite`
 - 🤖 Transformers or AI SDK integration with support for multiple providers
+- 🧠 **Hybrid Question-Based RAG** using Hypothetical Question Embedding (HQE)
 - 📄 PDF and text file support
-- 🔍 Semantic search via cosine similarity
+- 🔍 Advanced semantic search via weighted hybrid similarity
 - 🛡️ Fully type-safe with TypeScript
 - 🌐 REST API for searching and asking questions
 
@@ -115,8 +116,9 @@ bun scripts/feed.ts /path/to/your/documents
 This will:
 
 - Extract text from all PDF and TXT files
-- Split content into chunks (1200 chars with 200 char overlap)
-- Generate embeddings using your configured embedding model
+- Split content into chunks (1400 chars with 400 char overlap)
+- **Generate 4 hypothetical questions per chunk using LLM**
+- Generate embeddings for content AND questions using your configured embedding model
 - Store everything in the SQLite database
 
 ### 2. Start the API Server
@@ -175,30 +177,49 @@ Search for similar documents
 │   ├── embeddings.ts     # Embedding generation
 │   ├── ingest.ts         # File processing and chunking
 │   ├── llm.ts            # Local LLM for text generation
+│   ├── questions.ts      # Question generation for HQE
 │   ├── rag.ts            # RAG implementation
-│   └── search.ts         # Vector similarity search
+│   └── search.ts         # Hybrid vector similarity search
 ├── scripts/
-│   └── feed.ts           # CLI ingestion script
+│   ├── feed.ts           # CLI ingestion script
+│   └── migrate.ts        # Database migration script
 ├── types/
 │   └── index.ts          # TypeScript type definitions
+├── constants/
+│   ├── rag.ts            # RAG configuration (chunk size, weights, etc.)
+│   ├── providers.ts      # Provider configuration
+│   └── prompts.ts        # System prompts
 ├── index.ts              # REST API server
-├── ask.html              # Ask UI
+├── mcp-server.ts         # MCP server implementation
 ├── package.json
-└── README.md
+├── README.md
+└── HYBRID_RAG.md         # Documentation on HQE approach
 ```
 
 ## How It Works
 
-### Vector Search
+### Hybrid Question-Based Vector Search
 
-1. **Ingestion**: Documents are parsed, split into overlapping chunks, and embedded using a local transformer model
-2. **Storage**: Embeddings are stored as JSON arrays in SQLite alongside the text chunks
-3. **Search**: Query text is embedded using the same model, then cosine similarity is computed against all stored embeddings
-4. **Results**: Top-K most similar chunks are returned with their metadata
+This system uses an advanced **Hypothetical Question Embedding (HQE)** approach:
+
+1. **Ingestion**:
+   - Documents are parsed and split into overlapping chunks
+   - For each chunk, an LLM generates 3-5 hypothetical questions the chunk would answer
+   - Both the content AND the questions are embedded
+   - All embeddings stored in SQLite with metadata
+
+2. **Search**:
+   - Query text is embedded using the same model
+   - **Hybrid scoring**: Similarity computed against both question embeddings (70% weight) and content embeddings (30% weight)
+   - This matches user queries more accurately since queries are naturally question-like
+
+3. **Results**: Top-K most similar chunks returned based on weighted hybrid score
+
+**Why this works better:** User queries like "How should I train?" align more closely with embedded questions like "What are effective training methods?" than with raw content chunks about training methodologies.
 
 ### RAG (Retrieval-Augmented Generation)
 
-1. **Retrieval**: The question is first used to search for the most relevant document chunks (vector search)
+1. **Retrieval**: The question is first used to search for the most relevant document chunks (hybrid vector search)
 2. **Context**: Relevant chunks are combined to form context for the LLM
 3. **Generation**: A local LLM generates an answer based on the question and retrieved context
 4. **Response**: The answer is returned along with source citations
@@ -221,7 +242,9 @@ Search for similar documents
 - **Default Provider**: Transformers (local)
 - **Alternative Provider**: AI SDK (LMStudio/OpenAI/etc) - see `PROVIDER_TYPE` in `.env`
 - **Embedding Dimensions**: 384 (transformers) or varies (AI SDK)
-- **Chunk Size**: 1200 characters with 200 character overlap
+- **Chunk Size**: 1400 characters with 400 character overlap
+- **Questions Per Chunk**: 4 (configurable in `src/constants/rag.ts`)
+- **Hybrid Search Weights**: 70% question similarity, 30% content similarity
 - **Similarity Metric**: Cosine similarity
 - **Database**: SQLite via `bun:sqlite`
 

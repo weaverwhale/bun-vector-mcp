@@ -18,6 +18,8 @@ export function initializeDatabase(): Database {
       embedding TEXT NOT NULL,
       chunk_index INTEGER DEFAULT 0,
       chunk_size INTEGER DEFAULT 0,
+      hypothetical_questions TEXT,
+      question_embeddings TEXT,
       created_at INTEGER NOT NULL
     )
   `);
@@ -43,11 +45,13 @@ export function insertDocument(
   chunk_text: string,
   embedding: number[],
   chunk_index: number = 0,
-  chunk_size: number = 0
+  chunk_size: number = 0,
+  hypothetical_questions?: string[],
+  question_embeddings?: number[][]
 ): number {
   const stmt = db.prepare(`
-    INSERT INTO documents (filename, content, chunk_text, embedding, chunk_index, chunk_size, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO documents (filename, content, chunk_text, embedding, chunk_index, chunk_size, hypothetical_questions, question_embeddings, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -57,6 +61,8 @@ export function insertDocument(
     JSON.stringify(embedding),
     chunk_index,
     chunk_size,
+    hypothetical_questions ? JSON.stringify(hypothetical_questions) : null,
+    question_embeddings ? JSON.stringify(question_embeddings) : null,
     Date.now()
   );
 
@@ -65,7 +71,7 @@ export function insertDocument(
 
 export function getAllDocuments(db: Database): Document[] {
   const stmt = db.prepare(`
-    SELECT id, filename, content, chunk_text, embedding, chunk_index, chunk_size, created_at
+    SELECT id, filename, content, chunk_text, embedding, chunk_index, chunk_size, hypothetical_questions, question_embeddings, created_at
     FROM documents
   `);
 
@@ -77,12 +83,20 @@ export function getAllDocuments(db: Database): Document[] {
     embedding: string;
     chunk_index: number;
     chunk_size: number;
+    hypothetical_questions: string | null;
+    question_embeddings: string | null;
     created_at: number;
   }>;
 
   return rows.map(row => ({
     ...row,
     embedding: JSON.parse(row.embedding) as number[],
+    hypothetical_questions: row.hypothetical_questions
+      ? (JSON.parse(row.hypothetical_questions) as string[])
+      : undefined,
+    question_embeddings: row.question_embeddings
+      ? (JSON.parse(row.question_embeddings) as number[][])
+      : undefined,
   }));
 }
 

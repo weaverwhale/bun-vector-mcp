@@ -1,9 +1,11 @@
 import type { Database } from 'bun:sqlite';
 import { insertDocument } from '../db/schema.ts';
-import { generateEmbedding } from './embeddings.ts';
+import { generateEmbedding, generateEmbeddings } from './embeddings.ts';
+import { generateQuestions, initializeQuestionGenerator } from './questions.ts';
 import type { IngestResult } from '../types/index.ts';
 import { PDFParse } from 'pdf-parse';
 import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag.ts';
+import { PROVIDER_TYPE } from '../constants/providers.ts';
 
 /**
  * Cleans PDF text by removing common artifacts and normalizing whitespace
@@ -209,13 +211,41 @@ export async function ingestFile(
     const chunks = chunkText(content);
     console.log(`  Created ${chunks.length} chunks`);
 
-    // Generate embeddings and insert each chunk
+    // Initialize question generator if using local model (transformers)
+    if (PROVIDER_TYPE === 'transformers') {
+      console.log('  Initializing question generator...');
+      await initializeQuestionGenerator();
+    }
+
+    // Generate embeddings and questions for each chunk
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]!;
       console.log(`  Processing chunk ${i + 1}/${chunks.length}`);
 
-      const embedding = await generateEmbedding(chunk);
-      insertDocument(db, filename, content, chunk, embedding, i, chunk.length);
+      // Generate content embedding
+      const contentEmbedding = await generateEmbedding(chunk);
+
+      // Generate hypothetical questions
+      console.log(`    Generating questions...`);
+      const questions = await generateQuestions(chunk);
+      console.log(`    Generated ${questions.length} questions`);
+
+      // Generate embeddings for each question
+      console.log(`    Generating question embeddings...`);
+      const questionEmbeddings = await generateEmbeddings(questions);
+
+      // Insert document with both content and question embeddings
+      insertDocument(
+        db,
+        filename,
+        content,
+        chunk,
+        contentEmbedding,
+        i,
+        chunk.length,
+        questions,
+        questionEmbeddings
+      );
     }
 
     console.log(`✓ Successfully processed: ${filename}`);

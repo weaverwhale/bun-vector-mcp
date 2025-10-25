@@ -7,6 +7,8 @@ export interface Document {
   chunk_index: number;
   chunk_size: number;
   created_at: number;
+  hypothetical_questions?: string[];
+  question_embeddings?: number[][];
 }
 
 export interface SearchRequest {
