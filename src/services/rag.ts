@@ -1,9 +1,9 @@
 import type { Database } from 'bun:sqlite';
-import { searchSimilar } from './search.ts';
-import { generateAnswer, streamAnswer } from './llm.ts';
-import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from '../constants/rag.ts';
-import { log } from '../utils/logger.ts';
-import type { StreamEvent } from '../types/index.ts';
+import { searchSimilar } from './search';
+import { generateAnswer, streamAnswer } from './llm';
+import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from '../constants/rag';
+import { log } from '../utils/logger';
+import type { StreamEvent } from '../types/index';
 
 export interface RAGResult {
   answer: string;

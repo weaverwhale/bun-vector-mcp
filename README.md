@@ -66,7 +66,7 @@ PROVIDER_TYPE=ai-sdk
 AI_PROVIDER=openai
 AI_BASE_URL=https://api.openai.com/v1
 AI_API_KEY=your-openai-api-key
-LLM_MODEL=gpt-4
+LLM_MODEL=gpt-4.1-mini
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 

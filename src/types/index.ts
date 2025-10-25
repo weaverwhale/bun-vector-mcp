@@ -64,3 +64,12 @@ export type StreamEvent =
 export interface AskStreamRequest extends AskRequest {
   stream?: boolean;
 }
+
+// Frontend types
+export type QueryMode = 'ask' | 'search';
+
+export interface Source {
+  filename: string;
+  chunk_text?: string;
+  similarity: number;
+}

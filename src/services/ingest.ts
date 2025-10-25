@@ -1,11 +1,11 @@
 import type { Database } from 'bun:sqlite';
-import { insertDocument } from '../db/schema.ts';
-import { generateEmbedding, generateEmbeddings } from './embeddings.ts';
-import { generateQuestions, initializeQuestionGenerator } from './questions.ts';
-import type { IngestResult } from '../types/index.ts';
 import { PDFParse } from 'pdf-parse';
-import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag.ts';
-import { PROVIDER_TYPE } from '../constants/providers.ts';
+import { insertDocument } from '../db/schema';
+import { generateEmbedding, generateEmbeddings } from './embeddings';
+import { generateQuestions, initializeQuestionGenerator } from './questions';
+import type { IngestResult } from '../types/index.ts';
+import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
+import { PROVIDER_TYPE } from '../constants/providers';
 
 /**
  * Cleans PDF text by removing common artifacts and normalizing whitespace

@@ -1,8 +1,8 @@
-import { initializeDatabase, getDocumentCount } from './db/schema.ts';
-import { initializeEmbeddings } from './services/embeddings.ts';
-import { initializeLLM } from './services/llm.ts';
-import { searchSimilar } from './services/search.ts';
-import { askQuestion, streamQuestion } from './services/rag.ts';
+import { initializeDatabase, getDocumentCount } from './db/schema';
+import { initializeEmbeddings } from './services/embeddings';
+import { initializeLLM } from './services/llm';
+import { searchSimilar } from './services/search';
+import { askQuestion, streamQuestion } from './services/rag';
 import type {
   SearchRequest,
   SearchResponse,
@@ -10,9 +10,9 @@ import type {
   AskResponse,
   AskStreamRequest,
   StreamEvent,
-} from './types/index.ts';
-import indexHtml from './index.html';
-import { DEFAULT_TOP_K } from './constants/rag.ts';
+} from './types/index';
+import indexHtml from './frontend/index.html';
+import { DEFAULT_TOP_K } from './constants/rag';
 
 // Initialize on startup
 const db = initializeDatabase();

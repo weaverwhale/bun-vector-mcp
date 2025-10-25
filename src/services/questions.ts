@@ -6,10 +6,10 @@ import {
   LLM_MODEL,
   AI_BASE_URL,
   AI_API_KEY,
-} from '../constants/providers.ts';
-import { QUESTION_GENERATION_PROMPT } from '../constants/prompts.ts';
-import { QUESTIONS_PER_CHUNK } from '../constants/rag.ts';
-import { log, error } from '../utils/logger.ts';
+} from '../constants/providers';
+import { QUESTION_GENERATION_PROMPT } from '../constants/prompts';
+import { QUESTIONS_PER_CHUNK } from '../constants/rag';
+import { log, error } from '../utils/logger';
 
 // Configure transformers to use local models
 env.allowLocalModels = true;

@@ -6,15 +6,25 @@ import {
   EMBEDDING_MODEL,
   AI_BASE_URL,
   AI_API_KEY,
-} from '../constants/providers.ts';
-import { log, error } from '../utils/logger.ts';
+} from '../constants/providers';
+import { log, error } from '../utils/logger';
 
 // Configure transformers to use local models
 env.allowLocalModels = true;
 env.useBrowserCache = false;
 
-// Transformers pipeline
-let embeddingPipeline: Awaited<ReturnType<typeof pipeline>> | null = null;
+type EmbeddingPipelineFunction = (
+  text: string,
+  options?: Record<string, unknown>
+) => Promise<{ data: number[] }>;
+
+// Transformers pipeline - narrowed assignment function
+let embeddingPipeline: EmbeddingPipelineFunction | null = null;
+
+async function initializePipeline(): Promise<void> {
+  const pipe = await pipeline('feature-extraction', EMBEDDING_MODEL);
+  embeddingPipeline = pipe as EmbeddingPipelineFunction;
+}
 
 // AI SDK provider
 let aiProvider: ReturnType<typeof createOpenAI> | null = null;
@@ -30,7 +40,7 @@ export async function initializeEmbeddings(): Promise<void> {
     );
     log(`Model: ${EMBEDDING_MODEL}`);
 
-    embeddingPipeline = await pipeline('feature-extraction', EMBEDDING_MODEL);
+    await initializePipeline();
     log('Local embedding model loaded successfully');
   } else if (PROVIDER_TYPE === 'ai-sdk') {
     if (aiProvider) {
@@ -58,10 +68,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     // Generate embedding with mean pooling
-    const output = await embeddingPipeline(text, { pooling: 'mean' });
+    const output = await embeddingPipeline(text, {
+      pooling: 'mean',
+      normalize: true,
+    });
 
     // Extract the embedding array
-    const embedding = Array.from((output as any).data) as number[];
+    const embedding = Array.from(output.data) as number[];
 
     return embedding;
   } else if (PROVIDER_TYPE === 'ai-sdk') {

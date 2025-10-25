@@ -7,13 +7,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { initializeDatabase, getDocumentCount } from './db/schema.ts';
-import { initializeEmbeddings } from './services/embeddings.ts';
-import { initializeLLM } from './services/llm.ts';
-import { searchSimilar } from './services/search.ts';
-import { askQuestion } from './services/rag.ts';
-import { EMBEDDING_MODEL, LLM_MODEL } from './constants/providers.ts';
-import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from './constants/rag.ts';
+import { initializeDatabase, getDocumentCount } from './db/schema';
+import { initializeEmbeddings } from './services/embeddings';
+import { initializeLLM } from './services/llm';
+import { searchSimilar } from './services/search';
+import { askQuestion } from './services/rag';
+import { EMBEDDING_MODEL, LLM_MODEL } from './constants/providers';
+import { DEFAULT_TOP_K, MAX_ANSWER_TOKENS } from './constants/rag';
 
 // Initialize database, embeddings, and LLM
 const db = initializeDatabase();

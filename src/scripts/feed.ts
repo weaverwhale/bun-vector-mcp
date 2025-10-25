@@ -1,7 +1,7 @@
-import { initializeDatabase, clearDatabase } from '../db/schema.ts';
-import { initializeEmbeddings } from '../services/embeddings.ts';
-import { ingestDirectory } from '../services/ingest.ts';
-import { SOURCE_DIR } from '../constants/dirs.ts';
+import { initializeDatabase, clearDatabase } from '../db/schema';
+import { initializeEmbeddings } from '../services/embeddings';
+import { ingestDirectory } from '../services/ingest';
+import { SOURCE_DIR } from '../constants/dirs';
 
 async function main() {
   console.log('=== Vector Database Feed Script ===\n');

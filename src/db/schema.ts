@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
-import type { Document } from '../types/index.ts';
-import { log } from '../utils/logger.ts';
+import type { Document } from '../types/index';
+import { log } from '../utils/logger';
 
 const DB_PATH = process.env.DB_PATH || './vector.db';
 console.log(`Using database at: ${DB_PATH}`);

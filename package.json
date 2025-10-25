@@ -15,7 +15,10 @@
   "devDependencies": {
     "@modelcontextprotocol/inspector": "^0.17.2",
     "@types/bun": "latest",
-    "prettier": "^3.6.2"
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "prettier": "^3.6.2",
+    "tailwindcss": "^4.1.16"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -25,6 +28,10 @@
     "@huggingface/transformers": "^3.2.3",
     "@modelcontextprotocol/sdk": "^1.20.1",
     "ai": "^5.0.78",
-    "pdf-parse": "^2.4.5"
+    "bun-plugin-tailwind": "^0.1.2",
+    "marked": "^16.4.1",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }

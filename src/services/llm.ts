@@ -6,10 +6,10 @@ import {
   LLM_MODEL,
   AI_BASE_URL,
   AI_API_KEY,
-} from '../constants/providers.ts';
-import { MAX_ANSWER_TOKENS, GENERATION_TEMPERATURE } from '../constants/rag.ts';
-import { DEFAULT_SYSTEM_PROMPT } from '../constants/prompts.ts';
-import { log, error } from '../utils/logger.ts';
+} from '../constants/providers';
+import { MAX_ANSWER_TOKENS, GENERATION_TEMPERATURE } from '../constants/rag';
+import { DEFAULT_SYSTEM_PROMPT } from '../constants/prompts';
+import { log, error } from '../utils/logger';
 
 // Configure transformers to use local models
 env.allowLocalModels = true;

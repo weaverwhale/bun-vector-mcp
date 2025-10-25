@@ -1,14 +1,14 @@
 import type { Database } from 'bun:sqlite';
-import { getAllDocuments } from '../db/schema.ts';
-import { generateEmbedding } from './embeddings.ts';
-import type { SearchResult } from '../types/index.ts';
+import { getAllDocuments } from '../db/schema';
+import { generateEmbedding } from './embeddings';
+import type { SearchResult } from '../types/index';
 import {
   SIMILARITY_THRESHOLD,
   DEFAULT_TOP_K,
   QUESTION_WEIGHT,
   CONTENT_WEIGHT,
-} from '../constants/rag.ts';
-import { log } from '../utils/logger.ts';
+} from '../constants/rag';
+import { log } from '../utils/logger';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
