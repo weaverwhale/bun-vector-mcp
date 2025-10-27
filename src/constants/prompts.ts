@@ -3,7 +3,7 @@ import { QUESTIONS_PER_CHUNK } from './rag';
 export const DEFAULT_SEARCH_QUERY = 'conjugate method';
 export const DEFAULT_QUESTIONS = [
   'What is the conjugate method?',
-  'What is the 80/20 method?',
+  'What is the reverse hyper?',
   'What is circa max?',
 ];
 

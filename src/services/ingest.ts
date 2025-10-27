@@ -6,7 +6,7 @@ import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index.ts';
 import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
 import { PROVIDER_TYPE } from '../constants/providers';
-import { splitIntoSentences } from '../utils/text';
+import { splitIntoSentences, normalizeForEmbedding } from '../utils/text';
 import { IngestionError } from '../utils/errors';
 
 /**
@@ -260,7 +260,9 @@ export async function ingestFile(
 
     // Batch process embeddings and questions
     console.log('  Generating embeddings for all chunks...');
-    const contentEmbeddings = await generateEmbeddings(chunks);
+    // Normalize chunks for embedding to handle spelling variations
+    const normalizedChunks = chunks.map(chunk => normalizeForEmbedding(chunk));
+    const contentEmbeddings = await generateEmbeddings(normalizedChunks);
 
     console.log('  Generating questions for all chunks...');
     const allQuestions: string[][] = [];
@@ -276,7 +278,12 @@ export async function ingestFile(
     const allQuestionEmbeddings: number[][][] = [];
     for (const questions of allQuestions) {
       if (questions.length > 0) {
-        const questionEmbeddings = await generateEmbeddings(questions);
+        // Normalize questions for embedding to handle spelling variations
+        const normalizedQuestions = questions.map(q =>
+          normalizeForEmbedding(q)
+        );
+        const questionEmbeddings =
+          await generateEmbeddings(normalizedQuestions);
         allQuestionEmbeddings.push(questionEmbeddings);
       } else {
         allQuestionEmbeddings.push([]);

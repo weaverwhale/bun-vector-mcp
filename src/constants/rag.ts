@@ -8,11 +8,11 @@ export const QUESTIONS_PER_CHUNK = 5;
 
 // Retrieval
 export const DEFAULT_TOP_K = 8;
-export const SIMILARITY_THRESHOLD = 0.3;
+export const SIMILARITY_THRESHOLD = 0.5;
 
 // Hybrid Search Weights
-export const QUESTION_WEIGHT = 0.5;
-export const CONTENT_WEIGHT = 0.5;
+export const QUESTION_WEIGHT = 0.6;
+export const CONTENT_WEIGHT = 0.4;
 
 // Context Assembly
 export const MAX_CONTEXT_LENGTH = 12000;

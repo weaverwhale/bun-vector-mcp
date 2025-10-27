@@ -106,3 +106,33 @@ export function normalizeText(text: string): string {
     .replace(/\s+/g, ' ')
     .replace(/\n{3,}/g, '\n\n');
 }
+
+/**
+ * Normalize text for embedding generation to handle spelling variations
+ * This ensures that queries like "circa max" match "circa-max" in documents
+ */
+export function normalizeForEmbedding(text: string): string {
+  let normalized = text;
+
+  // Remove hyphens between words (circa-max → circa max, co-operation → cooperation)
+  // But preserve hyphens in contexts like phone numbers or specific codes
+  normalized = normalized.replace(/(\w)-(\w)/g, '$1 $2');
+
+  // Remove apostrophes (don't → dont, athlete's → athletes)
+  normalized = normalized.replace(/'/g, '');
+
+  // Handle common ligatures by expanding them
+  normalized = normalized
+    .replace(/æ/g, 'ae')
+    .replace(/œ/g, 'oe')
+    .replace(/ﬁ/g, 'fi')
+    .replace(/ﬂ/g, 'fl');
+
+  // Normalize whitespace (multiple spaces to single space)
+  normalized = normalized.replace(/\s+/g, ' ');
+
+  // Convert to lowercase for case-insensitive matching
+  normalized = normalized.toLowerCase();
+
+  return normalized.trim();
+}

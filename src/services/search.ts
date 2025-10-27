@@ -10,6 +10,7 @@ import {
 } from '../constants/rag';
 import { log } from '../utils/logger';
 import { cosineSimilarity } from '../utils/vectors';
+import { normalizeForEmbedding } from '../utils/text';
 import {
   validateQueryInput,
   validateTopK,
@@ -42,8 +43,9 @@ export async function searchSimilar(
     return [];
   }
 
-  // Generate query embedding
-  const queryEmbedding = await generateEmbedding(query);
+  // Generate query embedding with normalization to handle spelling variations
+  const normalizedQuery = normalizeForEmbedding(query);
+  const queryEmbedding = await generateEmbedding(normalizedQuery);
 
   // Calculate hybrid similarity for each document
   const results = documents.map(doc => {

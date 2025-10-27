@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { QueryMode } from '../types/index';
+import { DEFAULT_TOP_K, SIMILARITY_THRESHOLD } from '../constants/rag';
 import { QueryInput } from './components/QueryInput';
 import { ResponseDisplay } from './components/ResponseDisplay';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -10,8 +11,9 @@ export function App() {
   const [mode, setMode] = useState<QueryMode>('ask');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [query, setQuery] = useState('');
-  const [topK, setTopK] = useState(8);
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.3);
+  const [topK, setTopK] = useState(DEFAULT_TOP_K);
+  const [similarityThreshold, setSimilarityThreshold] =
+    useState(SIMILARITY_THRESHOLD);
 
   const { isDarkMode, toggleTheme } = useDarkMode();
 

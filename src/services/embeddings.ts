@@ -15,6 +15,14 @@ import { withRetry, EmbeddingError } from '../utils/errors';
 env.allowLocalModels = true;
 env.useBrowserCache = false;
 
+// Prevent reinitialization during HMR in development
+if (typeof global !== 'undefined') {
+  (global as any).__EMBEDDING_PIPELINE_CACHE =
+    (global as any).__EMBEDDING_PIPELINE_CACHE || null;
+  (global as any).__AI_PROVIDER_CACHE =
+    (global as any).__AI_PROVIDER_CACHE || null;
+}
+
 type EmbeddingPipelineFunction = (
   text: string,
   options?: Record<string, unknown>
@@ -24,8 +32,17 @@ type EmbeddingPipelineFunction = (
 let embeddingPipeline: EmbeddingPipelineFunction | null = null;
 
 async function initializePipeline(): Promise<void> {
+  // Check global cache for HMR persistence
+  if ((global as any).__EMBEDDING_PIPELINE_CACHE) {
+    embeddingPipeline = (global as any).__EMBEDDING_PIPELINE_CACHE;
+    return;
+  }
+
   const pipe = await pipeline('feature-extraction', EMBEDDING_MODEL);
   embeddingPipeline = pipe as EmbeddingPipelineFunction;
+
+  // Store in global cache for HMR
+  (global as any).__EMBEDDING_PIPELINE_CACHE = embeddingPipeline;
 }
 
 // AI SDK provider
@@ -41,7 +58,11 @@ export function getEmbeddingModelVersion(): string {
 
 export async function initializeEmbeddings(): Promise<void> {
   if (PROVIDER_TYPE === 'transformers') {
-    if (embeddingPipeline) {
+    // Check if already initialized or cached
+    if (embeddingPipeline || (global as any).__EMBEDDING_PIPELINE_CACHE) {
+      embeddingPipeline =
+        embeddingPipeline || (global as any).__EMBEDDING_PIPELINE_CACHE;
+      embeddingModelVersion = embeddingModelVersion || EMBEDDING_MODEL;
       return;
     }
 
@@ -54,7 +75,10 @@ export async function initializeEmbeddings(): Promise<void> {
     log('Local embedding model loaded successfully');
     embeddingModelVersion = EMBEDDING_MODEL;
   } else if (PROVIDER_TYPE === 'ai-sdk') {
-    if (aiProvider) {
+    // Check if already initialized or cached
+    if (aiProvider || (global as any).__AI_PROVIDER_CACHE) {
+      aiProvider = aiProvider || (global as any).__AI_PROVIDER_CACHE;
+      embeddingModelVersion = embeddingModelVersion || EMBEDDING_MODEL;
       return;
     }
 
@@ -65,6 +89,9 @@ export async function initializeEmbeddings(): Promise<void> {
       baseURL: AI_BASE_URL,
       apiKey: AI_API_KEY,
     });
+
+    // Cache for HMR
+    (global as any).__AI_PROVIDER_CACHE = aiProvider;
     embeddingModelVersion = EMBEDDING_MODEL;
   }
 }

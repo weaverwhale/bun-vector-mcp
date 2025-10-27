@@ -12,3 +12,6 @@ models/
 
 # Source files
 source/
+
+# DevDB
+.devdbrc
