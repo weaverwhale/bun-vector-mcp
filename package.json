@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot src/index.ts",
+    "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "feed": "bun src/scripts/feed.ts",
     "mcp": "bun src/mcp-server.ts",
