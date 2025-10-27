@@ -223,7 +223,11 @@ export function QueryInput({
                 e.target.style.boxShadow = 'none';
               }}
             >
-              <option value="" disabled style={{ color: 'var(--text-tertiary)' }}>
+              <option
+                value=""
+                disabled
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 {query && !DEFAULT_QUESTIONS.includes(query)
                   ? 'Custom question...'
                   : 'Select a question...'}
@@ -249,7 +253,10 @@ export function QueryInput({
             className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
             style={{
               backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
+              color:
+                query.length > 0
+                  ? 'var(--text-primary)'
+                  : 'var(--text-tertiary)',
               border: '2px solid var(--border-primary)',
             }}
             onFocus={e => {
