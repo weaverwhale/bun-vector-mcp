@@ -10,6 +10,8 @@ import {
 import { QUESTION_GENERATION_PROMPT } from '../constants/prompts';
 import { QUESTIONS_PER_CHUNK } from '../constants/rag';
 import { log, error } from '../utils/logger';
+import { extractKeyPhrase } from '../utils/text';
+import { withRetry, LLMError } from '../utils/errors';
 
 // Configure transformers to use local models
 env.allowLocalModels = true;
@@ -81,15 +83,21 @@ export async function generateQuestions(chunkText: string): Promise<string[]> {
 
       const userPrompt = `Text:\n${chunkText}\n\nGenerate ${QUESTIONS_PER_CHUNK} questions that this text would answer:`;
 
-      const { text } = await generateText({
-        model: aiProvider.chat(LLM_MODEL),
-        messages: [
-          { role: 'system', content: QUESTION_GENERATION_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        topP: 0.9,
-      });
+      const result = await withRetry(
+        async () =>
+          generateText({
+            model: aiProvider!.chat(LLM_MODEL),
+            messages: [
+              { role: 'system', content: QUESTION_GENERATION_PROMPT },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.7,
+            topP: 0.9,
+          }),
+        { retryableErrors: [LLMError] }
+      );
+
+      const { text } = result;
 
       return parseQuestions(text);
     } else {
@@ -147,23 +155,4 @@ function parseQuestions(text: string): string[] {
 
   // Limit to requested number of questions
   return questions.slice(0, QUESTIONS_PER_CHUNK);
-}
-
-/**
- * Extracts a key phrase from text for fallback question generation
- */
-function extractKeyPhrase(text: string): string {
-  // Get first few meaningful words (skip common words)
-  const words = text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
-    .split(/\s+/)
-    .filter(
-      w =>
-        w.length > 3 &&
-        !['this', 'that', 'with', 'from', 'have', 'been'].includes(w)
-    )
-    .slice(0, 3);
-
-  return words.join(' ') || 'this topic';
 }

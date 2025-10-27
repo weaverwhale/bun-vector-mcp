@@ -1,11 +1,13 @@
 import type { Database } from 'bun:sqlite';
 import { PDFParse } from 'pdf-parse';
 import { insertDocument } from '../db/schema';
-import { generateEmbedding, generateEmbeddings } from './embeddings';
+import { generateEmbeddings, getEmbeddingModelVersion } from './embeddings';
 import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index.ts';
 import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
 import { PROVIDER_TYPE } from '../constants/providers';
+import { splitIntoSentences } from '../utils/text';
+import { IngestionError } from '../utils/errors';
 
 /**
  * Cleans PDF text by removing common artifacts and normalizing whitespace
@@ -161,28 +163,6 @@ export async function semanticChunking(text: string): Promise<string[]> {
 }
 
 /**
- * Splits text into sentences
- */
-function splitIntoSentences(text: string): string[] {
-  // Split on sentence boundaries (., !, ?) followed by space and capital letter
-  // or end of string, but not on common abbreviations
-  const sentences: string[] = [];
-  const sentenceRegex = /[^.!?]+[.!?]+(?:\s+|$)/g;
-  let match;
-
-  while ((match = sentenceRegex.exec(text)) !== null) {
-    sentences.push(match[0].trim());
-  }
-
-  // If no matches, return the whole text as one sentence
-  if (sentences.length === 0) {
-    return [text];
-  }
-
-  return sentences;
-}
-
-/**
  * Gets the last N characters of text, trying to start at a sentence boundary
  */
 function getOverlapText(text: string, targetLength: number): string {
@@ -237,7 +217,8 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
 
 export async function ingestFile(
   db: Database,
-  filePath: string
+  filePath: string,
+  useSemanticChunking: boolean = false
 ): Promise<IngestResult> {
   const filename = filePath.split('/').pop() || filePath;
 
@@ -256,9 +237,20 @@ export async function ingestFile(
       };
     }
 
-    // Split into chunks
-    const chunks = chunkText(content);
+    // Split into chunks (semantic or fixed-size)
+    const chunks = useSemanticChunking
+      ? await semanticChunking(content)
+      : chunkText(content);
     console.log(`  Created ${chunks.length} chunks`);
+
+    if (chunks.length === 0) {
+      return {
+        filename,
+        chunks_created: 0,
+        success: false,
+        error: 'No valid chunks created from content',
+      };
+    }
 
     // Initialize question generator if using local model (transformers)
     if (PROVIDER_TYPE === 'transformers') {
@@ -266,29 +258,51 @@ export async function ingestFile(
       await initializeQuestionGenerator();
     }
 
-    // Generate embeddings and questions for each chunk
+    // Batch process embeddings and questions
+    console.log('  Generating embeddings for all chunks...');
+    const contentEmbeddings = await generateEmbeddings(chunks);
+
+    console.log('  Generating questions for all chunks...');
+    const allQuestions: string[][] = [];
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]!;
-      console.log(`  Processing chunk ${i + 1}/${chunks.length}`);
-
-      // Generate content embedding
-      const contentEmbedding = await generateEmbedding(chunk);
-
-      // Generate hypothetical questions
-      console.log(`    Generating questions...`);
+      console.log(`  Generating questions for chunk ${i + 1}/${chunks.length}`);
       const questions = await generateQuestions(chunk);
-      console.log(`    Generated ${questions.length} questions`);
+      allQuestions.push(questions);
+    }
 
-      // Generate embeddings for each question
-      console.log(`    Generating question embeddings...`);
-      const questionEmbeddings = await generateEmbeddings(questions);
+    // Batch generate question embeddings
+    console.log('  Generating question embeddings...');
+    const allQuestionEmbeddings: number[][][] = [];
+    for (const questions of allQuestions) {
+      if (questions.length > 0) {
+        const questionEmbeddings = await generateEmbeddings(questions);
+        allQuestionEmbeddings.push(questionEmbeddings);
+      } else {
+        allQuestionEmbeddings.push([]);
+      }
+    }
 
-      // Create chunk metadata
+    // Get embedding model version for metadata
+    const modelVersion = getEmbeddingModelVersion();
+
+    // Insert all chunks into database
+    console.log('  Inserting chunks into database...');
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
+      const contentEmbedding = contentEmbeddings[i]!;
+      const questions = allQuestions[i]!;
+      const questionEmbeddings = allQuestionEmbeddings[i]!;
+
+      // Create enhanced chunk metadata
       const chunkMetadata = {
         chunk_index: i,
         total_chunks: chunks.length,
         char_start: content.indexOf(chunk),
         char_end: content.indexOf(chunk) + chunk.length,
+        embedding_model: modelVersion,
+        chunking_strategy: useSemanticChunking ? 'semantic' : 'fixed-size',
+        ingestion_date: new Date().toISOString(),
       };
 
       // Insert document with embeddings and metadata
@@ -315,12 +329,11 @@ export async function ingestFile(
     };
   } catch (error) {
     console.error(`✗ Error processing ${filename}:`, error);
-    return {
-      filename,
-      chunks_created: 0,
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new IngestionError(
+      `Failed to ingest file ${filename}: ${err.message}`,
+      err
+    );
   }
 }
 
