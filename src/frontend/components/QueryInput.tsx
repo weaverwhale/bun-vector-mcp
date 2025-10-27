@@ -202,9 +202,7 @@ export function QueryInput({
               id="question-select"
               value={DEFAULT_QUESTIONS.includes(query) ? query : ''}
               onChange={e => {
-                if (e.currentTarget.value) {
-                  setQuery(e.currentTarget.value);
-                }
+                setQuery(e.currentTarget.value);
               }}
               className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
               style={{
@@ -223,14 +221,8 @@ export function QueryInput({
                 e.target.style.boxShadow = 'none';
               }}
             >
-              <option
-                value=""
-                disabled
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                {query && !DEFAULT_QUESTIONS.includes(query)
-                  ? 'Custom question...'
-                  : 'Select a question...'}
+              <option value="" style={{ color: 'var(--text-tertiary)' }}>
+                Custom question...
               </option>
               {DEFAULT_QUESTIONS.map(question => (
                 <option key={question} value={question}>
@@ -239,35 +231,37 @@ export function QueryInput({
               ))}
             </select>
           )}
-          <input
-            type="text"
-            id="question"
-            value={query}
-            onChange={e => setQuery(e.currentTarget.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              mode === 'ask'
-                ? `e.g., ${DEFAULT_QUESTIONS[0]}`
-                : `e.g., ${DEFAULT_SEARCH_QUERY}`
-            }
-            className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              color:
-                query.length > 0
-                  ? 'var(--text-primary)'
-                  : 'var(--text-tertiary)',
-              border: '2px solid var(--border-primary)',
-            }}
-            onFocus={e => {
-              e.target.style.borderColor = 'var(--accent-primary)';
-              e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
-            }}
-            onBlur={e => {
-              e.target.style.borderColor = 'var(--border-primary)';
-              e.target.style.boxShadow = 'none';
-            }}
-          />
+          {(!DEFAULT_QUESTIONS.includes(query) || mode === 'search') && (
+            <input
+              type="text"
+              id="question"
+              value={query}
+              onChange={e => setQuery(e.currentTarget.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={
+                mode === 'ask'
+                  ? `e.g., ${DEFAULT_QUESTIONS[0]}`
+                  : `e.g., ${DEFAULT_SEARCH_QUERY}`
+              }
+              className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                color:
+                  query.length > 0
+                    ? 'var(--text-primary)'
+                    : 'var(--text-tertiary)',
+                border: '2px solid var(--border-primary)',
+              }}
+              onFocus={e => {
+                e.target.style.borderColor = 'var(--accent-primary)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
+              }}
+              onBlur={e => {
+                e.target.style.borderColor = 'var(--border-primary)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          )}
         </div>
       </div>
 

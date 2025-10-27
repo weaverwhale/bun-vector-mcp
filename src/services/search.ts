@@ -75,15 +75,27 @@ export async function searchSimilar(
   });
 
   // Sort by similarity and filter by threshold
-  const filteredResults = results
+  const sortedResults = results
     .filter(result => result.similarity >= minSimilarity)
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, topK);
+    .sort((a, b) => b.similarity - a.similarity);
+
+  // Deduplicate by text content - keep only the highest-scoring occurrence of each unique text
+  const seenTexts = new Set<string>();
+  const deduplicatedResults: SearchResult[] = [];
+
+  for (const result of sortedResults) {
+    if (!seenTexts.has(result.chunk_text)) {
+      seenTexts.add(result.chunk_text);
+      deduplicatedResults.push(result);
+    }
+  }
+
+  const filteredResults = deduplicatedResults.slice(0, topK);
 
   const tookMs = Math.round((performance.now() - startTime) * 100) / 100;
 
   log(
-    `[searchSimilar] Found ${filteredResults.length} results (took ${tookMs}ms)`
+    `[searchSimilar] Found ${sortedResults.length} results, ${deduplicatedResults.length} unique after deduplication, returning ${filteredResults.length} (took ${tookMs}ms)`
   );
 
   return filteredResults;
