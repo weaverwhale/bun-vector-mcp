@@ -1,3 +1,7 @@
+import {
+  DEFAULT_QUESTIONS,
+  DEFAULT_SEARCH_QUERY,
+} from '../../constants/prompts';
 import type { QueryMode } from '../../types/index';
 
 interface QueryInputProps {
@@ -192,32 +196,72 @@ export function QueryInput({
         >
           {mode === 'ask' ? 'Your Question:' : 'Search Query:'}
         </label>
-        <input
-          type="text"
-          id="question"
-          value={query}
-          onChange={e => setQuery(e.currentTarget.value)}
-          onKeyPress={handleKeyPress}
-          placeholder={
-            mode === 'ask'
-              ? 'e.g., What is the conjugate method?'
-              : 'e.g., conjugate method'
-          }
-          className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-          }}
-          onFocus={e => {
-            e.target.style.borderColor = 'var(--accent-primary)';
-            e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
-          }}
-          onBlur={e => {
-            e.target.style.borderColor = 'var(--border-primary)';
-            e.target.style.boxShadow = 'none';
-          }}
-        />
+        <div className="flex flex-col gap-2">
+          {mode === 'ask' && (
+            <select
+              id="question-select"
+              value={DEFAULT_QUESTIONS.includes(query) ? query : ''}
+              onChange={e => {
+                if (e.currentTarget.value) {
+                  setQuery(e.currentTarget.value);
+                }
+              }}
+              className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                color: DEFAULT_QUESTIONS.includes(query)
+                  ? 'var(--text-primary)'
+                  : 'var(--text-tertiary)',
+                border: '2px solid var(--border-primary)',
+              }}
+              onFocus={e => {
+                e.target.style.borderColor = 'var(--accent-primary)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
+              }}
+              onBlur={e => {
+                e.target.style.borderColor = 'var(--border-primary)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              <option value="" disabled style={{ color: 'var(--text-tertiary)' }}>
+                {query && !DEFAULT_QUESTIONS.includes(query)
+                  ? 'Custom question...'
+                  : 'Select a question...'}
+              </option>
+              {DEFAULT_QUESTIONS.map(question => (
+                <option key={question} value={question}>
+                  {question}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            type="text"
+            id="question"
+            value={query}
+            onChange={e => setQuery(e.currentTarget.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={
+              mode === 'ask'
+                ? `e.g., ${DEFAULT_QUESTIONS[0]}`
+                : `e.g., ${DEFAULT_SEARCH_QUERY}`
+            }
+            className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              border: '2px solid var(--border-primary)',
+            }}
+            onFocus={e => {
+              e.target.style.borderColor = 'var(--accent-primary)';
+              e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
+            }}
+            onBlur={e => {
+              e.target.style.borderColor = 'var(--border-primary)';
+              e.target.style.boxShadow = 'none';
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex gap-2.5">

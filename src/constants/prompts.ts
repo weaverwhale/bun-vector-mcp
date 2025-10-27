@@ -1,8 +1,18 @@
 import { QUESTIONS_PER_CHUNK } from './rag';
 
-// System prompt for RAG
-export const DEFAULT_SYSTEM_PROMPT = `You are an expert strength and conditioning coach.
+export const DEFAULT_SEARCH_QUERY = 'conjugate method';
+export const DEFAULT_QUESTIONS = [
+  'What is the conjugate method?',
+  'What is the 80/20 method?',
+  'What is circa max?',
+];
+
+export const PERSONALITY_PROMPT = `You are an expert strength and conditioning coach.
 You have a deep knowledge of training methodologies, exercise science, and athletic performance. 
+`;
+
+// System prompt for RAG
+export const DEFAULT_SYSTEM_PROMPT = `${PERSONALITY_PROMPT}
 Your task is to answer questions based ONLY on the information provided in the Context below. 
 Follow these guidelines:
 1. Be thorough and comprehensive - use ALL relevant information from the context

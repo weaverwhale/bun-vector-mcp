@@ -9,7 +9,7 @@ import { useDarkMode } from './hooks/useDarkMode';
 export function App() {
   const [mode, setMode] = useState<QueryMode>('ask');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
-  const [query, setQuery] = useState('What is the conjugate method?');
+  const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(8);
   const [similarityThreshold, setSimilarityThreshold] = useState(0.3);
 
