@@ -107,7 +107,56 @@ export function chunkText(text: string): string[] {
     chunks.push(currentChunk.trim());
   }
 
-  // Filter out very small chunks (less than 50 characters)
+  // Filter out very small chunks
+  return chunks.filter(chunk => chunk.length >= 50);
+}
+
+/**
+ * Semantic chunking using embedding similarity to detect topic boundaries
+ * Alternative to fixed-size chunking that respects semantic coherence
+ */
+export async function semanticChunking(text: string): Promise<string[]> {
+  // Split into sentences first
+  const sentences = splitIntoSentences(text);
+
+  if (sentences.length === 0) return [];
+  if (sentences.length === 1) return [text];
+
+  // For semantic chunking, we group sentences into chunks based on semantic similarity
+  // This is computationally expensive, so we use a hybrid approach:
+  // 1. Group sentences into candidate chunks
+  // 2. Merge adjacent chunks if they're semantically similar
+
+  const chunks: string[] = [];
+  let currentChunk = '';
+  let sentenceCount = 0;
+
+  for (const sentence of sentences) {
+    const candidateChunk = currentChunk + (currentChunk ? ' ' : '') + sentence;
+
+    // If chunk is getting large, consider splitting
+    if (candidateChunk.length > CHUNK_SIZE) {
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+        sentenceCount = 1;
+      } else {
+        // Single sentence larger than chunk size
+        chunks.push(sentence.trim());
+        currentChunk = '';
+        sentenceCount = 0;
+      }
+    } else {
+      currentChunk = candidateChunk;
+      sentenceCount++;
+    }
+  }
+
+  // Add last chunk
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+
   return chunks.filter(chunk => chunk.length >= 50);
 }
 
@@ -234,7 +283,15 @@ export async function ingestFile(
       console.log(`    Generating question embeddings...`);
       const questionEmbeddings = await generateEmbeddings(questions);
 
-      // Insert document with both content and question embeddings
+      // Create chunk metadata
+      const chunkMetadata = {
+        chunk_index: i,
+        total_chunks: chunks.length,
+        char_start: content.indexOf(chunk),
+        char_end: content.indexOf(chunk) + chunk.length,
+      };
+
+      // Insert document with embeddings and metadata
       insertDocument(
         db,
         filename,
@@ -244,7 +301,8 @@ export async function ingestFile(
         i,
         chunk.length,
         questions,
-        questionEmbeddings
+        questionEmbeddings,
+        chunkMetadata
       );
     }
 

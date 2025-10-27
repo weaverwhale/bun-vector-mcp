@@ -16,7 +16,7 @@ env.allowLocalModels = true;
 env.useBrowserCache = false;
 
 // Transformers pipeline
-let llmPipeline: Awaited<ReturnType<typeof pipeline>> | null = null;
+let llmPipeline: any = null;
 
 // AI SDK provider
 let aiProvider: ReturnType<typeof createOpenAI> | null = null;

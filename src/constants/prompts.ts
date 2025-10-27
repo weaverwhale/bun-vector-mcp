@@ -1,4 +1,4 @@
-import { QUESTIONS_PER_CHUNK } from './rag';
+import { QUERY_EXPANSION_COUNT, QUESTIONS_PER_CHUNK } from './rag';
 
 // System prompt
 export const DEFAULT_SYSTEM_PROMPT = `You are an expert strength and conditioning coach.
@@ -25,3 +25,12 @@ Requirements:
 - Use natural language, as if a user would ask them
 - Output ONLY the questions, one per line, numbered 1-${QUESTIONS_PER_CHUNK}
 - Do NOT include explanations or additional text`;
+
+export const QUERY_EXPANSION_PROMPT = `You are a query expansion assistant. 
+Given a user's question, generate ${QUERY_EXPANSION_COUNT} alternative ways to phrase the same question.
+Requirements:
+- Keep the same intent and meaning
+- Use different vocabulary and sentence structure
+- Make questions natural and specific
+- Output ONLY the alternative questions, one per line, numbered
+- Do NOT include explanations`;

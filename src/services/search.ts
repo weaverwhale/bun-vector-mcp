@@ -1,60 +1,44 @@
 import type { Database } from 'bun:sqlite';
 import { getAllDocuments } from '../db/schema';
 import { generateEmbedding } from './embeddings';
-import type { SearchResult } from '../types/index';
+import type { SearchResult, SearchMetrics } from '../types/index';
 import {
   SIMILARITY_THRESHOLD,
   DEFAULT_TOP_K,
+  INITIAL_RETRIEVAL_K,
   QUESTION_WEIGHT,
   CONTENT_WEIGHT,
+  ENABLE_RERANKING,
+  ENABLE_DEDUPLICATION,
+  ENABLE_QUERY_EXPANSION,
+  LOG_SEARCH_METRICS,
 } from '../constants/rag';
 import { log } from '../utils/logger';
+import { cosineSimilarity } from '../utils/vectors';
+import {
+  deduplicateResults,
+  rerankResults,
+  reciprocalRankFusion,
+} from './rerank';
+import { expandQuery } from './query-expansion';
 
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error(
-      `Vectors must have the same length (query: ${a.length}, stored: ${b.length})`
-    );
-  }
-
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i]! * b[i]!;
-    magnitudeA += a[i]! * a[i]!;
-    magnitudeB += b[i]! * b[i]!;
-  }
-
-  magnitudeA = Math.sqrt(magnitudeA);
-  magnitudeB = Math.sqrt(magnitudeB);
-
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
-  }
-
-  return dotProduct / (magnitudeA * magnitudeB);
-}
-
+/**
+ * Enhanced hybrid search with query expansion, reranking, and deduplication
+ */
 export async function searchSimilar(
   db: Database,
   query: string,
   topK: number = DEFAULT_TOP_K,
   minSimilarity: number = SIMILARITY_THRESHOLD
 ): Promise<SearchResult[]> {
-  log(`[searchSimilar] Starting hybrid search for query: "${query}"`);
+  const startTime = performance.now();
+
+  log(`[searchSimilar] Starting enhanced hybrid search for query: "${query}"`);
   log(
     `[searchSimilar] Parameters: topK=${topK}, minSimilarity=${minSimilarity}`
   );
 
-  // Generate embedding for the query
-  const queryEmbedding = await generateEmbedding(query);
-  log(
-    `[searchSimilar] Generated embedding with ${queryEmbedding.length} dimensions`
-  );
-
-  // Get all documents from database
+  // Get all documents from database once
   const documents = getAllDocuments(db);
   log(`[searchSimilar] Found ${documents.length} documents in database`);
 
@@ -62,6 +46,95 @@ export async function searchSimilar(
     log('[searchSimilar] No documents found, returning empty results');
     return [];
   }
+
+  let allResults: SearchResult[] = [];
+
+  // Stage 1: Query Expansion (if enabled)
+  if (ENABLE_QUERY_EXPANSION) {
+    log('[searchSimilar] Stage 1: Query expansion');
+    const queryVariations = await expandQuery(query);
+    log(`[searchSimilar] Generated ${queryVariations.length} query variations`);
+
+    // Search with each query variation
+    const resultSets: SearchResult[][] = [];
+    for (const queryVar of queryVariations) {
+      const results = await searchWithQuery(
+        db,
+        queryVar,
+        documents,
+        minSimilarity
+      );
+      resultSets.push(results);
+    }
+
+    // Combine results using Reciprocal Rank Fusion
+    allResults = reciprocalRankFusion(resultSets);
+    log(`[searchSimilar] RRF combined to ${allResults.length} unique results`);
+  } else {
+    // Single query search
+    allResults = await searchWithQuery(db, query, documents, minSimilarity);
+  }
+
+  // Stage 2: Deduplication (if enabled)
+  let dedupResults = allResults;
+  if (ENABLE_DEDUPLICATION && allResults.length > 0) {
+    log('[searchSimilar] Stage 2: Deduplication');
+    dedupResults = deduplicateResults(allResults);
+  }
+
+  // Stage 3: Reranking (if enabled)
+  let finalResults = dedupResults;
+  if (ENABLE_RERANKING && dedupResults.length > 0) {
+    log('[searchSimilar] Stage 3: Reranking');
+    finalResults = rerankResults(dedupResults, query);
+  }
+
+  // Take top K
+  finalResults = finalResults.slice(0, topK);
+
+  const tookMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+  // Log metrics if enabled
+  if (LOG_SEARCH_METRICS) {
+    const metrics: SearchMetrics = {
+      query,
+      total_documents: documents.length,
+      initial_results: allResults.length,
+      after_deduplication: dedupResults.length,
+      final_results: finalResults.length,
+      avg_similarity:
+        finalResults.length > 0
+          ? finalResults.reduce((sum, r) => sum + r.similarity, 0) /
+            finalResults.length
+          : 0,
+      took_ms: tookMs,
+    };
+    log(`[searchSimilar] Metrics: ${JSON.stringify(metrics)}`);
+  }
+
+  log(
+    `[searchSimilar] Returning ${finalResults.length} results (took ${tookMs}ms)`
+  );
+  if (finalResults.length > 0) {
+    log(
+      `[searchSimilar] Top result: "${finalResults[0]!.filename}" (similarity: ${finalResults[0]!.similarity.toFixed(4)})`
+    );
+  }
+
+  return finalResults;
+}
+
+/**
+ * Search with a single query (internal helper)
+ */
+async function searchWithQuery(
+  db: Database,
+  query: string,
+  documents: any[],
+  minSimilarity: number
+): Promise<SearchResult[]> {
+  // Generate embedding for the query
+  const queryEmbedding = await generateEmbedding(query);
 
   // Calculate hybrid similarity for each document
   const results = documents.map(doc => {
@@ -87,6 +160,7 @@ export async function searchSimilar(
       id: doc.id,
       filename: doc.filename,
       chunk_text: doc.chunk_text,
+      chunk_index: doc.chunk_index,
       similarity: hybridScore,
     };
   });
@@ -94,17 +168,10 @@ export async function searchSimilar(
   // Sort by similarity (descending)
   results.sort((a, b) => b.similarity - a.similarity);
 
-  // Filter by minimum similarity threshold and take top K
+  // Filter by minimum similarity threshold and take initial top K
   const filteredResults = results
     .filter(result => result.similarity >= minSimilarity)
-    .slice(0, topK);
-
-  log(`[searchSimilar] Returning ${filteredResults.length} results`);
-  if (filteredResults.length > 0) {
-    log(
-      `[searchSimilar] Top result: "${filteredResults[0]!.filename}" (similarity: ${filteredResults[0]!.similarity.toFixed(4)})`
-    );
-  }
+    .slice(0, INITIAL_RETRIEVAL_K);
 
   return filteredResults;
 }

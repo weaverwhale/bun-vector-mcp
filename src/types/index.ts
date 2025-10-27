@@ -9,6 +9,7 @@ export interface Document {
   created_at: number;
   hypothetical_questions?: string[];
   question_embeddings?: number[][];
+  chunk_metadata?: Record<string, any>;
 }
 
 export interface SearchRequest {
@@ -22,6 +23,18 @@ export interface SearchResult {
   filename: string;
   chunk_text: string;
   similarity: number;
+  chunk_index?: number;
+  rerank_score?: number;
+}
+
+export interface SearchMetrics {
+  query: string;
+  total_documents: number;
+  initial_results: number;
+  after_deduplication: number;
+  final_results: number;
+  avg_similarity: number;
+  took_ms: number;
 }
 
 export interface SearchResponse {
