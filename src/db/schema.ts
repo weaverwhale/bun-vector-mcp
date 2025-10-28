@@ -9,7 +9,7 @@ import {
 } from '../utils/vectors';
 
 const DB_PATH = process.env.DB_PATH || './vector.db';
-console.log(`Using database at: ${DB_PATH}`);
+log(`Using database at: ${DB_PATH}`);
 
 export function initializeDatabase(): Database {
   const db = new Database(DB_PATH, { create: true });
