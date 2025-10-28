@@ -4,7 +4,10 @@ export const DEFAULT_SEARCH_QUERY = 'conjugate method';
 export const DEFAULT_QUESTIONS = [
   'What is the conjugate method?',
   'What is the reverse hyper?',
+  'What is the rule of 3?',
+  'What is GPP?',
   'What is circa max?',
+  'Write a program for a 5 day split for a beginner lifter',
 ];
 
 export const PERSONALITY_PROMPT = `You are an expert strength and conditioning coach.
