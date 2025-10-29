@@ -6,7 +6,11 @@ import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index.ts';
 import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
 import { PROVIDER_TYPE } from '../constants/providers';
-import { splitIntoSentences, normalizeForEmbedding } from '../utils/text';
+import {
+  splitIntoSentences,
+  normalizeForEmbedding,
+  stripHtml,
+} from '../utils/text';
 import { IngestionError } from '../utils/errors';
 
 /**
@@ -189,6 +193,94 @@ function getOverlapText(text: string, targetLength: number): string {
   return substring.trim();
 }
 
+/**
+ * Parse CSV content into array of row objects
+ * Handles quoted fields, escaped quotes, and newlines within fields
+ */
+function parseCSV(content: string): Array<Record<string, string>> {
+  const rows: string[][] = [];
+  const lines = content.split('\n');
+  let currentRow: string[] = [];
+  let currentField = '';
+  let insideQuotes = false;
+  let i = 0;
+
+  while (i < content.length) {
+    const char = content[i];
+    const nextChar = content[i + 1];
+
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        // Escaped quote
+        currentField += '"';
+        i += 2;
+        continue;
+      } else {
+        // Toggle quote state
+        insideQuotes = !insideQuotes;
+        i++;
+        continue;
+      }
+    }
+
+    if (!insideQuotes && char === ',') {
+      // End of field
+      currentRow.push(currentField);
+      currentField = '';
+      i++;
+      continue;
+    }
+
+    if (!insideQuotes && char === '\n') {
+      // End of row
+      currentRow.push(currentField);
+      if (currentRow.length > 0 && currentRow.some(f => f.trim())) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+      i++;
+      continue;
+    }
+
+    // Regular character
+    currentField += char;
+    i++;
+  }
+
+  // Handle last field/row if no trailing newline
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField);
+    if (currentRow.some(f => f.trim())) {
+      rows.push(currentRow);
+    }
+  }
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  // First row is headers
+  const headers = rows[0]!.map(h => h.trim());
+  const data: Array<Record<string, string>> = [];
+
+  // Convert remaining rows to objects
+  for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx]!;
+    const obj: Record<string, string> = {};
+
+    for (let colIdx = 0; colIdx < headers.length; colIdx++) {
+      const header = headers[colIdx]!;
+      const value = row[colIdx] || '';
+      obj[header] = value.trim();
+    }
+
+    data.push(obj);
+  }
+
+  return data;
+}
+
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   const file = Bun.file(filePath);
   const arrayBuffer = await file.arrayBuffer();
@@ -215,12 +307,154 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
   }
 }
 
+/**
+ * Ingest a CSV file, processing each row as a separate document
+ */
+export async function ingestCSV(
+  db: Database,
+  filePath: string
+): Promise<IngestResult> {
+  const filename = filePath.split('/').pop() || filePath;
+
+  try {
+    console.log(`Processing CSV: ${filename}`);
+
+    // Read and parse CSV file
+    const file = Bun.file(filePath);
+    const content = await file.text();
+    const rows = parseCSV(content);
+
+    if (rows.length === 0) {
+      return {
+        filename,
+        chunks_created: 0,
+        success: false,
+        error: 'No rows found in CSV file',
+      };
+    }
+
+    console.log(`  Found ${rows.length} rows to process`);
+
+    // Initialize question generator if using local model
+    if (PROVIDER_TYPE === 'transformers') {
+      console.log('  Initializing question generator...');
+      await initializeQuestionGenerator();
+    }
+
+    // Get embedding model version
+    const modelVersion = getEmbeddingModelVersion();
+
+    let processedCount = 0;
+
+    // Process each row
+    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx]!;
+      console.log(`  Processing row ${rowIdx + 1}/${rows.length}...`);
+
+      // Extract and combine main content fields
+      const title = row['Title'] || '';
+      const contentHtml = row['Content'] || '';
+      const link = row['Link'] || '';
+      const collection = row['Collection'] || '';
+
+      // Strip HTML from content
+      const contentClean = stripHtml(contentHtml);
+
+      // Combine fields for embedding
+      const combinedText = [title, contentClean, link, collection]
+        .filter(s => s.trim())
+        .join('\n\n');
+
+      if (!combinedText.trim()) {
+        console.log(`  Skipping empty row ${rowIdx + 1}`);
+        continue;
+      }
+
+      // Create document identifier using filename and title
+      const docIdentifier = title
+        ? `${filename} - ${title}`
+        : `${filename} - Row ${rowIdx + 1}`;
+
+      // Prepare metadata from remaining columns
+      const metadata: Record<string, any> = {
+        source_type: 'csv',
+        row_index: rowIdx,
+        embedding_model: modelVersion,
+        ingestion_date: new Date().toISOString(),
+      };
+
+      // Store all CSV columns as metadata
+      for (const [key, value] of Object.entries(row)) {
+        if (value && value.trim()) {
+          metadata[`csv_${key.toLowerCase().replace(/\s+/g, '_')}`] = value;
+        }
+      }
+
+      // Generate embeddings
+      const normalizedText = normalizeForEmbedding(combinedText);
+      const [contentEmbedding] = await generateEmbeddings([normalizedText]);
+
+      // Generate hypothetical questions
+      console.log(`  Generating questions for row ${rowIdx + 1}...`);
+      const questions = await generateQuestions(combinedText);
+
+      // Generate question embeddings
+      let questionEmbeddings: number[][] = [];
+      if (questions.length > 0) {
+        const normalizedQuestions = questions.map(q =>
+          normalizeForEmbedding(q)
+        );
+        questionEmbeddings = await generateEmbeddings(normalizedQuestions);
+      }
+
+      // Insert into database
+      insertDocument(
+        db,
+        docIdentifier,
+        combinedText, // Full combined content
+        combinedText, // Chunk text (same as content for CSV rows)
+        contentEmbedding!,
+        rowIdx, // Row index as chunk index
+        combinedText.length, // Chunk size
+        questions,
+        questionEmbeddings,
+        metadata
+      );
+
+      processedCount++;
+    }
+
+    console.log(
+      `✓ Successfully processed CSV: ${filename} (${processedCount} rows)`
+    );
+
+    return {
+      filename,
+      chunks_created: processedCount,
+      success: true,
+    };
+  } catch (error) {
+    console.error(`✗ Error processing CSV ${filename}:`, error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new IngestionError(
+      `Failed to ingest CSV file ${filename}: ${err.message}`,
+      err
+    );
+  }
+}
+
 export async function ingestFile(
   db: Database,
   filePath: string,
   useSemanticChunking: boolean = false
 ): Promise<IngestResult> {
   const filename = filePath.split('/').pop() || filePath;
+  const ext = filePath.toLowerCase().split('.').pop();
+
+  // Route CSV files to dedicated CSV ingestion
+  if (ext === 'csv') {
+    return await ingestCSV(db, filePath);
+  }
 
   try {
     console.log(`Processing: ${filename}`);
@@ -353,11 +587,11 @@ export async function ingestDirectory(
   try {
     // Read directory contents using Bun's native Glob API
     const files = await Array.fromAsync(
-      new Bun.Glob('**/*.{pdf,txt}').scan({ cwd: directoryPath })
+      new Bun.Glob('**/*.{pdf,txt,csv}').scan({ cwd: directoryPath })
     );
 
     if (files.length === 0) {
-      console.error('No PDF or TXT files found in directory');
+      console.error('No PDF, TXT, or CSV files found in directory');
       return results;
     }
 

@@ -136,3 +136,56 @@ export function normalizeForEmbedding(text: string): string {
 
   return normalized.trim();
 }
+
+/**
+ * Strip HTML tags and decode entities from HTML content
+ */
+export function stripHtml(html: string): string {
+  let text = html;
+
+  // Remove script and style elements with their content
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+  // Replace <br> and </p> with newlines before removing tags
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n\n');
+  text = text.replace(/<\/div>/gi, '\n');
+  text = text.replace(/<\/li>/gi, '\n');
+
+  // Remove all HTML tags
+  text = text.replace(/<[^>]+>/g, '');
+
+  // Decode common HTML entities
+  const entities: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&hellip;': '...',
+  };
+
+  for (const [entity, replacement] of Object.entries(entities)) {
+    text = text.replace(new RegExp(entity, 'g'), replacement);
+  }
+
+  // Decode numeric entities (&#123; or &#xAB;)
+  text = text.replace(/&#(\d+);/g, (_, code) =>
+    String.fromCharCode(parseInt(code, 10))
+  );
+  text = text.replace(/&#x([0-9a-f]+);/gi, (_, code) =>
+    String.fromCharCode(parseInt(code, 16))
+  );
+
+  // Normalize whitespace
+  text = text.replace(/[ \t]+/g, ' '); // multiple spaces to single
+  text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // max 2 newlines
+  text = text.replace(/^\s+|\s+$/gm, ''); // trim lines
+
+  return text.trim();
+}

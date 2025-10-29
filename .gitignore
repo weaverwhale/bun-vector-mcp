@@ -11,7 +11,7 @@ node_modules/
 models/
 
 # Source files
-source/
+*source/
 
 # DevDB
 .devdbrc
