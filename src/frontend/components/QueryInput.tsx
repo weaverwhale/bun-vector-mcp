@@ -198,38 +198,64 @@ export function QueryInput({
         </label>
         <div className="flex flex-col gap-2">
           {mode === 'ask' && (
-            <select
-              id="question-select"
-              value={DEFAULT_QUESTIONS.includes(query) ? query : ''}
-              onChange={e => {
-                setQuery(e.currentTarget.value);
-              }}
-              className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                color: DEFAULT_QUESTIONS.includes(query)
-                  ? 'var(--text-primary)'
-                  : 'var(--text-tertiary)',
-                border: '2px solid var(--border-primary)',
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = 'var(--accent-primary)';
-                e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = 'var(--border-primary)';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              <option value="" style={{ color: 'var(--text-tertiary)' }}>
-                Custom question...
-              </option>
-              {DEFAULT_QUESTIONS.map(question => (
-                <option key={question} value={question}>
-                  {question}
+            <div style={{ position: 'relative' }}>
+              <select
+                id="question-select"
+                value={DEFAULT_QUESTIONS.includes(query) ? query : ''}
+                onChange={e => {
+                  setQuery(e.currentTarget.value);
+                }}
+                className="appearance-none w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: DEFAULT_QUESTIONS.includes(query)
+                    ? 'var(--text-primary)'
+                    : 'var(--text-tertiary)',
+                  border: '2px solid var(--border-primary)',
+                  paddingRight: '2.5rem',
+                }}
+                onFocus={e => {
+                  e.target.style.borderColor = 'var(--accent-primary)';
+                  e.target.style.boxShadow =
+                    '0 0 0 3px rgba(106, 124, 158, 0.1)';
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = 'var(--border-primary)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                <option value="" style={{ color: 'var(--text-tertiary)' }}>
+                  Custom question...
                 </option>
-              ))}
-            </select>
+                {DEFAULT_QUESTIONS.map(question => (
+                  <option key={question} value={question}>
+                    {question}
+                  </option>
+                ))}
+              </select>
+              <svg
+                style={{
+                  position: 'absolute',
+                  right: '1rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '1rem',
+                  height: '1rem',
+                  pointerEvents: 'none',
+                  color: 'var(--text-tertiary)',
+                }}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
           )}
           {(!DEFAULT_QUESTIONS.includes(query) || mode === 'search') && (
             <input
