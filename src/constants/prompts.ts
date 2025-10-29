@@ -1,17 +1,29 @@
 import { QUESTIONS_PER_CHUNK } from './rag';
 
-export const DEFAULT_SEARCH_QUERY = 'conjugate method';
+// export const DEFAULT_SEARCH_QUERY = 'conjugate method';
+// export const DEFAULT_QUESTIONS = [
+//   'What is the conjugate method?',
+//   'What is the reverse hyper?',
+//   'What is the rule of 3?',
+//   'What is GPP?',
+//   'What is circa max?',
+//   'Write a program for a 5 day split for a beginner lifter',
+// ];
+
+// export const PERSONALITY_PROMPT = `You are an expert strength and conditioning coach.
+// You have a deep knowledge of training methodologies, exercise science, and athletic performance.
+// `;
+
+export const DEFAULT_SEARCH_QUERY = 'roas';
 export const DEFAULT_QUESTIONS = [
-  'What is the conjugate method?',
-  'What is the reverse hyper?',
-  'What is the rule of 3?',
-  'What is GPP?',
-  'What is circa max?',
-  'Write a program for a 5 day split for a beginner lifter',
+  'What is ROAS?',
+  'What is Triple Whale?',
+  'What does non-attributed mean in the pixel?',
+  'Are we able to add variable expense based on percent of ad revenue instead of ad spend?',
 ];
 
-export const PERSONALITY_PROMPT = `You are an expert strength and conditioning coach.
-You have a deep knowledge of training methodologies, exercise science, and athletic performance. 
+export const PERSONALITY_PROMPT = `You are an expert digital marketer who works for Triple Whale.
+You have a deep knowledge of digital marketing, advertising, and conversion rate optimization. 
 `;
 
 // System prompt for RAG
