@@ -1,8 +1,3 @@
-/**
- * Error handling utilities
- * Typed errors and retry logic
- */
-
 import { error as logError } from './logger';
 
 /**

@@ -1,311 +1,18 @@
 import type { Database } from 'bun:sqlite';
-import { PDFParse } from 'pdf-parse';
 import { insertDocument } from '../db/schema';
 import { generateEmbeddings, getEmbeddingModelVersion } from './embeddings';
 import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index.ts';
-import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
 import { PROVIDER_TYPE } from '../constants/providers';
+import { IngestionError } from '../utils/errors';
+import { parseCSV, detectCSVSchema } from '../utils/csvs';
 import {
-  splitIntoSentences,
+  extractTextFromFile,
+  semanticChunking,
+  chunkText,
   normalizeForEmbedding,
   stripHtml,
 } from '../utils/text';
-import { IngestionError } from '../utils/errors';
-
-/**
- * Cleans PDF text by removing common artifacts and normalizing whitespace
- */
-export function cleanPDFText(text: string): string {
-  let cleaned = text;
-
-  // Remove page numbers (various formats)
-  cleaned = cleaned.replace(/\bPage\s+\d+\s+of\s+\d+\b/gi, '');
-  cleaned = cleaned.replace(/\b\d+\s+of\s+\d+\b/g, '');
-  cleaned = cleaned.replace(/^\s*\d+\s*$/gm, ''); // standalone numbers on lines
-
-  // Remove common header/footer patterns
-  cleaned = cleaned.replace(/^[-_=]+$/gm, ''); // lines of dashes/underscores
-  cleaned = cleaned.replace(/^\s*\[.*?\]\s*$/gm, ''); // lines with just [text]
-
-  // Fix hyphenated words split across lines
-  cleaned = cleaned.replace(/(\w+)-\s*\n\s*(\w+)/g, '$1$2');
-
-  // Normalize whitespace
-  cleaned = cleaned.replace(/[ \t]+/g, ' '); // multiple spaces/tabs to single space
-  cleaned = cleaned.replace(/\n{3,}/g, '\n\n'); // max 2 consecutive newlines
-  cleaned = cleaned.replace(/\r\n/g, '\n'); // normalize line endings
-
-  // Remove leading/trailing whitespace from lines
-  cleaned = cleaned
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n');
-
-  // Remove excessive spaces around punctuation
-  cleaned = cleaned.replace(/\s+([.,;:!?])/g, '$1');
-  cleaned = cleaned.replace(/([.,;:!?])\s+/g, '$1 ');
-
-  return cleaned.trim();
-}
-
-/**
- * Splits text into chunks with sentence-boundary awareness
- */
-export function chunkText(text: string): string[] {
-  const chunks: string[] = [];
-
-  // Split on paragraph boundaries first (double newlines)
-  const paragraphs = text.split(/\n\n+/);
-
-  let currentChunk = '';
-
-  for (const paragraph of paragraphs) {
-    const trimmedParagraph = paragraph.trim();
-    if (!trimmedParagraph) continue;
-
-    // If adding this paragraph would exceed chunk size
-    if (currentChunk.length + trimmedParagraph.length > CHUNK_SIZE) {
-      // If we have content, save it
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
-
-        // Start new chunk with overlap from previous chunk
-        const overlapText = getOverlapText(currentChunk, CHUNK_OVERLAP);
-        currentChunk = overlapText
-          ? overlapText + '\n\n' + trimmedParagraph
-          : trimmedParagraph;
-      } else {
-        // Paragraph itself is larger than chunk size, split by sentences
-        const sentences = splitIntoSentences(trimmedParagraph);
-        let sentenceChunk = '';
-
-        for (const sentence of sentences) {
-          if (sentenceChunk.length + sentence.length > CHUNK_SIZE) {
-            if (sentenceChunk.length > 0) {
-              chunks.push(sentenceChunk.trim());
-              const overlapText = getOverlapText(sentenceChunk, CHUNK_OVERLAP);
-              sentenceChunk = overlapText
-                ? overlapText + ' ' + sentence
-                : sentence;
-            } else {
-              // Single sentence larger than chunk size, just add it
-              chunks.push(sentence.trim());
-              sentenceChunk = '';
-            }
-          } else {
-            sentenceChunk += (sentenceChunk ? ' ' : '') + sentence;
-          }
-        }
-
-        if (sentenceChunk.length > 0) {
-          currentChunk = sentenceChunk;
-        }
-      }
-    } else {
-      // Add paragraph to current chunk
-      currentChunk += (currentChunk ? '\n\n' : '') + trimmedParagraph;
-    }
-  }
-
-  // Add the last chunk
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  // Filter out very small chunks
-  return chunks.filter(chunk => chunk.length >= 50);
-}
-
-/**
- * Semantic chunking using embedding similarity to detect topic boundaries
- * Alternative to fixed-size chunking that respects semantic coherence
- */
-export async function semanticChunking(text: string): Promise<string[]> {
-  // Split into sentences first
-  const sentences = splitIntoSentences(text);
-
-  if (sentences.length === 0) return [];
-  if (sentences.length === 1) return [text];
-
-  // For semantic chunking, we group sentences into chunks based on semantic similarity
-  // This is computationally expensive, so we use a hybrid approach:
-  // 1. Group sentences into candidate chunks
-  // 2. Merge adjacent chunks if they're semantically similar
-
-  const chunks: string[] = [];
-  let currentChunk = '';
-  let sentenceCount = 0;
-
-  for (const sentence of sentences) {
-    const candidateChunk = currentChunk + (currentChunk ? ' ' : '') + sentence;
-
-    // If chunk is getting large, consider splitting
-    if (candidateChunk.length > CHUNK_SIZE) {
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = sentence;
-        sentenceCount = 1;
-      } else {
-        // Single sentence larger than chunk size
-        chunks.push(sentence.trim());
-        currentChunk = '';
-        sentenceCount = 0;
-      }
-    } else {
-      currentChunk = candidateChunk;
-      sentenceCount++;
-    }
-  }
-
-  // Add last chunk
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks.filter(chunk => chunk.length >= 50);
-}
-
-/**
- * Gets the last N characters of text, trying to start at a sentence boundary
- */
-function getOverlapText(text: string, targetLength: number): string {
-  if (text.length <= targetLength) {
-    return text;
-  }
-
-  const startPos = text.length - targetLength;
-  const substring = text.substring(startPos);
-
-  // Try to find a sentence boundary (., !, ?) in the overlap region
-  const sentenceBoundary = substring.search(/[.!?]\s+/);
-
-  if (sentenceBoundary !== -1) {
-    return substring.substring(sentenceBoundary + 2).trim();
-  }
-
-  // Otherwise, try to find a word boundary
-  const wordBoundary = substring.indexOf(' ');
-  if (wordBoundary !== -1) {
-    return substring.substring(wordBoundary + 1).trim();
-  }
-
-  return substring.trim();
-}
-
-/**
- * Parse CSV content into array of row objects
- * Handles quoted fields, escaped quotes, and newlines within fields
- */
-function parseCSV(content: string): Array<Record<string, string>> {
-  const rows: string[][] = [];
-  const lines = content.split('\n');
-  let currentRow: string[] = [];
-  let currentField = '';
-  let insideQuotes = false;
-  let i = 0;
-
-  while (i < content.length) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    if (char === '"') {
-      if (insideQuotes && nextChar === '"') {
-        // Escaped quote
-        currentField += '"';
-        i += 2;
-        continue;
-      } else {
-        // Toggle quote state
-        insideQuotes = !insideQuotes;
-        i++;
-        continue;
-      }
-    }
-
-    if (!insideQuotes && char === ',') {
-      // End of field
-      currentRow.push(currentField);
-      currentField = '';
-      i++;
-      continue;
-    }
-
-    if (!insideQuotes && char === '\n') {
-      // End of row
-      currentRow.push(currentField);
-      if (currentRow.length > 0 && currentRow.some(f => f.trim())) {
-        rows.push(currentRow);
-      }
-      currentRow = [];
-      currentField = '';
-      i++;
-      continue;
-    }
-
-    // Regular character
-    currentField += char;
-    i++;
-  }
-
-  // Handle last field/row if no trailing newline
-  if (currentField || currentRow.length > 0) {
-    currentRow.push(currentField);
-    if (currentRow.some(f => f.trim())) {
-      rows.push(currentRow);
-    }
-  }
-
-  if (rows.length === 0) {
-    return [];
-  }
-
-  // First row is headers
-  const headers = rows[0]!.map(h => h.trim());
-  const data: Array<Record<string, string>> = [];
-
-  // Convert remaining rows to objects
-  for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
-    const row = rows[rowIdx]!;
-    const obj: Record<string, string> = {};
-
-    for (let colIdx = 0; colIdx < headers.length; colIdx++) {
-      const header = headers[colIdx]!;
-      const value = row[colIdx] || '';
-      obj[header] = value.trim();
-    }
-
-    data.push(obj);
-  }
-
-  return data;
-}
-
-export async function extractTextFromPDF(filePath: string): Promise<string> {
-  const file = Bun.file(filePath);
-  const arrayBuffer = await file.arrayBuffer();
-  // Convert to Uint8Array instead of Buffer for Bun compatibility
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const parser = new PDFParse({ data: uint8Array });
-  const result = await parser.getText();
-  await parser.destroy();
-
-  // Clean the extracted text
-  return cleanPDFText(result.text);
-}
-
-export async function extractTextFromFile(filePath: string): Promise<string> {
-  const file = Bun.file(filePath);
-  const ext = filePath.toLowerCase().split('.').pop();
-
-  if (ext === 'pdf') {
-    return await extractTextFromPDF(filePath);
-  } else {
-    // For text files, read and clean
-    const text = await file.text();
-    return cleanPDFText(text); // Clean text files too
-  }
-}
 
 /**
  * Ingest a CSV file, processing each row as a separate document
@@ -335,6 +42,24 @@ export async function ingestCSV(
 
     console.log(`  Found ${rows.length} rows to process`);
 
+    // Detect CSV schema from column names
+    const columns = Object.keys(rows[0] || {});
+    const schema = detectCSVSchema(columns);
+
+    if (!schema.detected) {
+      console.log(
+        '  Warning: No standard columns detected, will use all columns'
+      );
+    } else {
+      console.log('  Detected schema mapping:');
+      if (schema.title) console.log(`    - Title: ${schema.title}`);
+      if (schema.content) console.log(`    - Content: ${schema.content}`);
+      if (schema.link) console.log(`    - Link: ${schema.link}`);
+      if (schema.collection)
+        console.log(`    - Collection: ${schema.collection}`);
+      if (schema.html) console.log(`    - HTML: ${schema.html}`);
+    }
+
     // Initialize question generator if using local model
     if (PROVIDER_TYPE === 'transformers') {
       console.log('  Initializing question generator...');
@@ -351,19 +76,26 @@ export async function ingestCSV(
       const row = rows[rowIdx]!;
       console.log(`  Processing row ${rowIdx + 1}/${rows.length}...`);
 
-      // Extract and combine main content fields
-      const title = row['Title'] || '';
-      const contentHtml = row['Content'] || '';
-      const link = row['Link'] || '';
-      const collection = row['Collection'] || '';
+      // Extract and combine main content fields using detected schema
+      const title = schema.title ? row[schema.title] || '' : '';
+      const contentField = schema.content ? row[schema.content] || '' : '';
+      const link = schema.link ? row[schema.link] || '' : '';
+      const collection = schema.collection ? row[schema.collection] || '' : '';
+      const htmlField = schema.html ? row[schema.html] || '' : '';
 
-      // Strip HTML from content
-      const contentClean = stripHtml(contentHtml);
+      // Strip HTML from content and html fields
+      const contentClean = stripHtml(contentField);
+      const htmlClean = htmlField ? stripHtml(htmlField) : '';
 
-      // Combine fields for embedding
-      const combinedText = [title, contentClean, link, collection]
-        .filter(s => s.trim())
-        .join('\n\n');
+      // Combine all text content, including stripped HTML if available
+      const textParts = [title, contentClean];
+      if (htmlClean && htmlClean !== contentClean) {
+        textParts.push(htmlClean);
+      }
+      if (link) textParts.push(link);
+      if (collection) textParts.push(collection);
+
+      const combinedText = textParts.filter(s => s.trim()).join('\n\n');
 
       if (!combinedText.trim()) {
         console.log(`  Skipping empty row ${rowIdx + 1}`);
@@ -381,6 +113,14 @@ export async function ingestCSV(
         row_index: rowIdx,
         embedding_model: modelVersion,
         ingestion_date: new Date().toISOString(),
+        // Store detected schema mapping for transparency
+        schema_mapping: {
+          title_column: schema.title || null,
+          content_column: schema.content || null,
+          link_column: schema.link || null,
+          collection_column: schema.collection || null,
+          html_column: schema.html || null,
+        },
       };
 
       // Store all CSV columns as metadata

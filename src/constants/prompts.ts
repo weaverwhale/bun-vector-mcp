@@ -16,8 +16,7 @@ import { QUESTIONS_PER_CHUNK } from './rag';
 
 export const DEFAULT_SEARCH_QUERY = 'roas';
 export const DEFAULT_QUESTIONS = [
-  'What is ROAS?',
-  'What is Triple Whale?',
+  'What is triple pixel and what does it do?',
   'What does non-attributed mean in the pixel?',
   'Are we able to add variable expense based on percent of ad revenue instead of ad spend?',
 ];
@@ -41,8 +40,8 @@ Context sections are numbered [1], [2], etc. Use information from all relevant s
 /no_think`;
 
 // System prompt for question generation (HQE)
-export const QUESTION_GENERATION_PROMPT = `You are a question generation assistant. Given a text chunk, 
-generate ${QUESTIONS_PER_CHUNK} specific, diverse questions that this text chunk would answer.
+export const QUESTION_GENERATION_PROMPT = `You are a question generation assistant.
+Given a text chunk, generate ${QUESTIONS_PER_CHUNK} specific, diverse questions that this text chunk would answer.
 Requirements:
 - Generate exactly ${QUESTIONS_PER_CHUNK} questions
 - Questions should be specific and directly answerable by the text

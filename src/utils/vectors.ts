@@ -1,8 +1,4 @@
 /**
- * Utilities for efficient vector serialization and operations
- */
-
-/**
  * Serialize a number array to a Float32Array buffer for BLOB storage
  * This provides ~4x storage efficiency compared to JSON
  */

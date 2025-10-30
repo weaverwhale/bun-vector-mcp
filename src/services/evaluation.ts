@@ -1,8 +1,3 @@
-/**
- * Evaluation utilities
- * Provide metrics for RAG quality assessment
- */
-
 import type { SearchResult } from '../types/index';
 
 export interface EvaluationMetrics {

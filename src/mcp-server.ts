@@ -1,6 +1,3 @@
-// Set MCP mode to suppress stdout logging
-process.env.MCP_MODE = 'true';
-
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {

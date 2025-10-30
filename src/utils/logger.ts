@@ -2,7 +2,6 @@
  * Logger utility that only logs when not in MCP mode
  * MCP servers use stdio for JSON-RPC communication, so we can't pollute stdout
  */
-
 export function log(...args: any[]) {
   // Check MCP_MODE dynamically each time, not just at import time
   if (process.env.MCP_MODE !== 'true') {
