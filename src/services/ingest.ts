@@ -109,8 +109,8 @@ export async function ingestCSV(
         ? `${filename} - ${title}`
         : `${filename} - Row ${rowIdx + 1}`;
 
-      // Prepare metadata from remaining columns
-      const metadata: Record<string, any> = {
+      // Prepare base metadata from remaining columns
+      const baseMetadata: Record<string, any> = {
         source_type: 'csv',
         row_index: rowIdx,
         embedding_model: modelVersion,
@@ -129,50 +129,79 @@ export async function ingestCSV(
       // Store all CSV columns as metadata
       for (const [key, value] of Object.entries(row)) {
         if (value && value.trim()) {
-          metadata[`csv_${key.toLowerCase().replace(/\s+/g, '_')}`] = value;
+          baseMetadata[`csv_${key.toLowerCase().replace(/\s+/g, '_')}`] = value;
         }
       }
 
-      // Generate embeddings
-      const normalizedText = normalizeForEmbedding(combinedText);
-      const [contentEmbedding] = await generateEmbeddings([normalizedText]);
+      // Chunk the content if it's too large
+      // Using a threshold of 2000 chars to ensure chunks fit in context
+      const chunks =
+        combinedText.length > 2000 ? chunkText(combinedText) : [combinedText];
 
-      // Generate hypothetical questions or use thesis
-      let questions: string[] = [];
-      if (thesisField && thesisField.trim()) {
-        // Use thesis as the question directly
-        console.log(`  Using thesis as question for row ${rowIdx + 1}`);
-        questions = [thesisField.trim()];
-      } else {
-        // Generate hypothetical questions
-        console.log(`  Generating questions for row ${rowIdx + 1}...`);
-        questions = await generateQuestions(combinedText);
-      }
-
-      // Generate question embeddings
-      let questionEmbeddings: number[][] = [];
-      if (questions.length > 0) {
-        const normalizedQuestions = questions.map(q =>
-          normalizeForEmbedding(q)
+      if (chunks.length > 1) {
+        console.log(
+          `  Row ${rowIdx + 1}/${rows.length}: Creating ${chunks.length} chunks`
         );
-        questionEmbeddings = await generateEmbeddings(normalizedQuestions);
       }
 
-      // Insert into database
-      insertDocument(
-        db,
-        docIdentifier,
-        combinedText, // Full combined content
-        combinedText, // Chunk text (same as content for CSV rows)
-        contentEmbedding!,
-        rowIdx, // Row index as chunk index
-        combinedText.length, // Chunk size
-        questions,
-        questionEmbeddings,
-        metadata
-      );
+      // Process each chunk
+      for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+        const chunk = chunks[chunkIdx]!;
 
-      processedCount++;
+        // Generate embeddings for this chunk
+        const normalizedChunk = normalizeForEmbedding(chunk);
+        const [chunkEmbedding] = await generateEmbeddings([normalizedChunk]);
+
+        // Generate hypothetical questions or use thesis
+        let questions: string[] = [];
+        if (thesisField && thesisField.trim() && chunkIdx === 0) {
+          // Use thesis as the question for the first chunk only
+          console.log(`    Using provided question`);
+          questions = [thesisField.trim()];
+        } else if (chunks.length === 1 || chunkIdx === 0) {
+          // Generate hypothetical questions for single chunks or first chunk
+          console.log(`    Generating questions...`);
+          questions = await generateQuestions(chunk);
+        }
+
+        // Generate question embeddings
+        let questionEmbeddings: number[][] = [];
+        if (questions.length > 0) {
+          const normalizedQuestions = questions.map(q =>
+            normalizeForEmbedding(q)
+          );
+          questionEmbeddings = await generateEmbeddings(normalizedQuestions);
+        }
+
+        // Create chunk-specific metadata
+        const chunkMetadata = {
+          ...baseMetadata,
+          chunk_index: chunkIdx,
+          total_chunks_in_row: chunks.length,
+          is_chunked: chunks.length > 1,
+        };
+
+        // Insert into database with a unique identifier per chunk
+        const chunkDocId =
+          chunks.length > 1
+            ? `${docIdentifier} [Chunk ${chunkIdx + 1}/${chunks.length}]`
+            : docIdentifier;
+
+        insertDocument(
+          db,
+          chunkDocId,
+          combinedText, // Full combined content
+          chunk, // Individual chunk text
+          chunkEmbedding!,
+          chunkIdx,
+          chunk.length,
+          questions,
+          questionEmbeddings,
+          chunkMetadata
+        );
+
+        processedCount++;
+      }
     }
 
     console.log(
