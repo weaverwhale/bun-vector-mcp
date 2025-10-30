@@ -2,8 +2,9 @@ import type { Database } from 'bun:sqlite';
 import { insertDocument } from '../db/schema';
 import { generateEmbeddings, getEmbeddingModelVersion } from './embeddings';
 import { generateQuestions, initializeQuestionGenerator } from './questions';
-import type { IngestResult } from '../types/index.ts';
+import type { IngestResult } from '../types/index';
 import { PROVIDER_TYPE } from '../constants/providers';
+import { CHUNK_SIZE } from '../constants/rag';
 import { IngestionError } from '../utils/errors';
 import { parseCSV, detectCSVSchema } from '../utils/csvs';
 import {
@@ -134,9 +135,10 @@ export async function ingestCSV(
       }
 
       // Chunk the content if it's too large
-      // Using a threshold of 2000 chars to ensure chunks fit in context
       const chunks =
-        combinedText.length > 2000 ? chunkText(combinedText) : [combinedText];
+        combinedText.length > CHUNK_SIZE
+          ? chunkText(combinedText)
+          : [combinedText];
 
       if (chunks.length > 1) {
         console.log(

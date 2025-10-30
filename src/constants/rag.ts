@@ -1,5 +1,5 @@
 // Chunking
-export const CHUNK_SIZE = 1800;
+export const CHUNK_SIZE = 1200;
 export const CHUNK_OVERLAP = 400;
 export const MIN_CHUNK_SIZE = 50;
 
@@ -15,8 +15,8 @@ export const QUESTION_WEIGHT = 0.6;
 export const CONTENT_WEIGHT = 0.4;
 
 // Context Assembly
-export const MAX_CONTEXT_LENGTH = 12000;
+export const MAX_CONTEXT_LENGTH = CHUNK_SIZE * 20;
 
 // Generation
-export const MAX_ANSWER_TOKENS = 5000;
+export const MAX_ANSWER_TOKENS = CHUNK_SIZE * 5;
 export const GENERATION_TEMPERATURE = 0.3;
