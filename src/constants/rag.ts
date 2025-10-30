@@ -7,8 +7,8 @@ export const MIN_CHUNK_SIZE = 50;
 export const QUESTIONS_PER_CHUNK = 5;
 
 // Retrieval
-export const DEFAULT_TOP_K = 8;
-export const SIMILARITY_THRESHOLD = 0.5;
+export const DEFAULT_TOP_K = 5;
+export const SIMILARITY_THRESHOLD = 0.6;
 
 // Hybrid Search Weights
 export const QUESTION_WEIGHT = 0.6;
