@@ -48,8 +48,9 @@ export async function searchSimilar(
   // Use vec0 virtual table with MATCH operator for indexed KNN search
   // This uses vector indexes (HNSW/IVF) for O(log n) search instead of O(n) full scan
   // The k parameter tells vec0 how many nearest neighbors to find efficiently
-  // Fetch extra candidates for hybrid scoring, threshold filtering, and deduplication
-  const candidateLimit = Math.max(topK * 25, 200); // Get 25x candidates for hybrid reranking
+  // Need enough candidates to ensure good recall after hybrid scoring, threshold filtering, and deduplication
+  // With high similarity thresholds (0.5), we need more candidates to find enough matches
+  const candidateLimit = Math.max(topK * 250, 2000); // Fetch 2000 nearest neighbors for good recall
 
   const stmt = db.prepare(`
     SELECT 
