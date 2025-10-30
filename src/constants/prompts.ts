@@ -36,8 +36,11 @@ Follow these guidelines:
 5. If the context provides examples, protocols, or guidelines, include them
 6. If the context does not contain enough information to fully answer the question, clearly state what information is missing
 7. DO NOT make up information or draw from knowledge outside the provided context
-Use information from all relevant sections
-When answering, do not say "based on the context" or "based on the information provided", just answer the question.
+Answer directly and confidently as if this is your own knowledge. 
+Never use qualifying phrases such as:
+- "Based on the context/information/sources/documents provided"
+- "According to the context/information/sources"
+Simply state the information directly without attribution to sources or context.
 /no_think`;
 
 // System prompt for question generation (HQE)
