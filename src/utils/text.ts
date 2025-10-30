@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, CHUNK_OVERLAP } from '../constants/rag';
+import { CHUNK_SIZE, CHUNK_OVERLAP, MIN_CHUNK_SIZE } from '../constants/rag';
 import { PDFParse } from 'pdf-parse';
 
 /**
@@ -225,61 +225,27 @@ export function cleanPDFText(text: string): string {
 }
 
 /**
- * Splits text into chunks with sentence-boundary awareness
+ * Splits text into fixed-size chunks at word boundaries
  */
 export function chunkText(text: string): string[] {
+  const words = text.split(/\s+/);
   const chunks: string[] = [];
-
-  // Split on paragraph boundaries first (double newlines)
-  const paragraphs = text.split(/\n\n+/);
-
   let currentChunk = '';
 
-  for (const paragraph of paragraphs) {
-    const trimmedParagraph = paragraph.trim();
-    if (!trimmedParagraph) continue;
+  for (const word of words) {
+    const testChunk = currentChunk + (currentChunk ? ' ' : '') + word;
 
-    // If adding this paragraph would exceed chunk size
-    if (currentChunk.length + trimmedParagraph.length > CHUNK_SIZE) {
-      // If we have content, save it
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
+    if (testChunk.length > CHUNK_SIZE && currentChunk.length > 0) {
+      // Current chunk is full, save it and start new one
+      chunks.push(currentChunk.trim());
 
-        // Start new chunk with overlap from previous chunk
-        const overlapText = getOverlapText(currentChunk, CHUNK_OVERLAP);
-        currentChunk = overlapText
-          ? overlapText + '\n\n' + trimmedParagraph
-          : trimmedParagraph;
-      } else {
-        // Paragraph itself is larger than chunk size, split by sentences
-        const sentences = splitIntoSentences(trimmedParagraph);
-        let sentenceChunk = '';
-
-        for (const sentence of sentences) {
-          if (sentenceChunk.length + sentence.length > CHUNK_SIZE) {
-            if (sentenceChunk.length > 0) {
-              chunks.push(sentenceChunk.trim());
-              const overlapText = getOverlapText(sentenceChunk, CHUNK_OVERLAP);
-              sentenceChunk = overlapText
-                ? overlapText + ' ' + sentence
-                : sentence;
-            } else {
-              // Single sentence larger than chunk size, just add it
-              chunks.push(sentence.trim());
-              sentenceChunk = '';
-            }
-          } else {
-            sentenceChunk += (sentenceChunk ? ' ' : '') + sentence;
-          }
-        }
-
-        if (sentenceChunk.length > 0) {
-          currentChunk = sentenceChunk;
-        }
-      }
+      // Add overlap from previous chunk
+      const overlapWords = currentChunk
+        .split(/\s+/)
+        .slice(-Math.floor(CHUNK_OVERLAP / 10));
+      currentChunk = overlapWords.join(' ') + ' ' + word;
     } else {
-      // Add paragraph to current chunk
-      currentChunk += (currentChunk ? '\n\n' : '') + trimmedParagraph;
+      currentChunk = testChunk;
     }
   }
 
@@ -289,7 +255,7 @@ export function chunkText(text: string): string[] {
   }
 
   // Filter out very small chunks
-  return chunks.filter(chunk => chunk.length >= 50);
+  return chunks.filter(chunk => chunk.length >= MIN_CHUNK_SIZE);
 }
 
 /**
