@@ -134,11 +134,14 @@ export async function ingestCSV(
         }
       }
 
-      // Chunk the content if it's too large
+      // If we have a provided question/thesis, keep as single Q&A pair (don't chunk)
+      // Otherwise, use semantic chunking for long content
       const chunks =
-        combinedText.length > CHUNK_SIZE
-          ? chunkText(combinedText)
-          : [combinedText];
+        thesisField && thesisField.trim()
+          ? [combinedText] // Keep Q&A pairs intact
+          : combinedText.length > CHUNK_SIZE
+            ? await semanticChunking(combinedText)
+            : [combinedText];
 
       if (chunks.length > 1) {
         console.log(
@@ -154,15 +157,16 @@ export async function ingestCSV(
         const normalizedChunk = normalizeForEmbedding(chunk);
         const [chunkEmbedding] = await generateEmbeddings([normalizedChunk]);
 
-        // Generate hypothetical questions or use thesis
+        // Use thesis/question field OR generate questions
         let questions: string[] = [];
-        if (thesisField && thesisField.trim() && chunkIdx === 0) {
-          // Use thesis as the question for the first chunk only
-          console.log(`    Using provided question`);
+        if (thesisField && thesisField.trim()) {
+          // Use the same thesis/question for ALL chunks from this row
           questions = [thesisField.trim()];
-        } else if (chunks.length === 1 || chunkIdx === 0) {
-          // Generate hypothetical questions for single chunks or first chunk
-          console.log(`    Generating questions...`);
+        } else {
+          // No thesis field - generate questions for this chunk
+          console.log(
+            `    Generating questions for chunk ${chunkIdx + 1}/${chunks.length}...`
+          );
           questions = await generateQuestions(chunk);
         }
 
