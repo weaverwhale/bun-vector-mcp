@@ -36,7 +36,8 @@ Follow these guidelines:
 5. If the context provides examples, protocols, or guidelines, include them
 6. If the context does not contain enough information to fully answer the question, clearly state what information is missing
 7. DO NOT make up information or draw from knowledge outside the provided context
-Context sections are numbered [1], [2], etc. Use information from all relevant sections.
+Use information from all relevant sections
+When answering, do not say "based on the context" or "based on the information provided", just answer the question.
 /no_think`;
 
 // System prompt for question generation (HQE)
