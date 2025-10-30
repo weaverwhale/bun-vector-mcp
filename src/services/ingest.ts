@@ -58,10 +58,11 @@ export async function ingestCSV(
       if (schema.collection)
         console.log(`    - Collection: ${schema.collection}`);
       if (schema.html) console.log(`    - HTML: ${schema.html}`);
+      if (schema.thesis) console.log(`    - Thesis: ${schema.thesis}`);
     }
 
     // Initialize question generator if using local model
-    if (PROVIDER_TYPE === 'transformers') {
+    if (PROVIDER_TYPE === 'transformers' && !schema.thesis) {
       console.log('  Initializing question generator...');
       await initializeQuestionGenerator();
     }
@@ -82,6 +83,7 @@ export async function ingestCSV(
       const link = schema.link ? row[schema.link] || '' : '';
       const collection = schema.collection ? row[schema.collection] || '' : '';
       const htmlField = schema.html ? row[schema.html] || '' : '';
+      const thesisField = schema.thesis ? row[schema.thesis] || '' : '';
 
       // Strip HTML from content and html fields
       const contentClean = stripHtml(contentField);
@@ -120,6 +122,7 @@ export async function ingestCSV(
           link_column: schema.link || null,
           collection_column: schema.collection || null,
           html_column: schema.html || null,
+          thesis_column: schema.thesis || null,
         },
       };
 
@@ -134,9 +137,17 @@ export async function ingestCSV(
       const normalizedText = normalizeForEmbedding(combinedText);
       const [contentEmbedding] = await generateEmbeddings([normalizedText]);
 
-      // Generate hypothetical questions
-      console.log(`  Generating questions for row ${rowIdx + 1}...`);
-      const questions = await generateQuestions(combinedText);
+      // Generate hypothetical questions or use thesis
+      let questions: string[] = [];
+      if (thesisField && thesisField.trim()) {
+        // Use thesis as the question directly
+        console.log(`  Using thesis as question for row ${rowIdx + 1}`);
+        questions = [thesisField.trim()];
+      } else {
+        // Generate hypothetical questions
+        console.log(`  Generating questions for row ${rowIdx + 1}...`);
+        questions = await generateQuestions(combinedText);
+      }
 
       // Generate question embeddings
       let questionEmbeddings: number[][] = [];

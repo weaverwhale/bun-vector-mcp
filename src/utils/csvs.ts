@@ -7,6 +7,7 @@ export interface CSVSchemaMapping {
   link?: string;
   collection?: string;
   html?: string;
+  thesis?: string;
   detected: boolean;
 }
 
@@ -107,7 +108,7 @@ export function detectCSVSchema(columns: string[]): CSVSchemaMapping {
   const mapping: CSVSchemaMapping = { detected: false };
 
   // Define column name patterns for each standard field
-  const titlePatterns = ['title', 'thesis', 'header', 'name', 'heading'];
+  const titlePatterns = ['title', 'header', 'name', 'heading'];
   const contentPatterns = ['content', 'body', 'text', 'description', 'details'];
   const linkPatterns = ['link', 'url', 'href', 'uri'];
   const collectionPatterns = [
@@ -118,6 +119,7 @@ export function detectCSVSchema(columns: string[]): CSVSchemaMapping {
     'folder',
   ];
   const htmlPatterns = ['html', 'content_html', 'html_content', 'raw_html'];
+  const thesisPatterns = ['thesis', 'question', 'query'];
 
   // Find matching columns
   for (let i = 0; i < columns.length; i++) {
@@ -150,6 +152,10 @@ export function detectCSVSchema(columns: string[]): CSVSchemaMapping {
       htmlPatterns.some(p => colLower === p || colLower.includes(p))
     ) {
       mapping.html = col;
+      mapping.detected = true;
+    }
+    if (!mapping.thesis && thesisPatterns.some(p => colLower === p)) {
+      mapping.thesis = col;
       mapping.detected = true;
     }
   }
