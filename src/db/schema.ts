@@ -1,4 +1,5 @@
 import { Database } from 'bun:sqlite';
+import * as sqliteVec from 'sqlite-vec';
 import type { Document } from '../types/index';
 import { log } from '../utils/logger';
 import {
@@ -11,8 +12,29 @@ import {
 const DB_PATH = process.env.DB_PATH || './vector.db';
 log(`Using database at: ${DB_PATH}`);
 
+// On macOS, configure custom SQLite before creating any database instances
+// This is required for sqlite-vec extension loading support
+if (process.platform === 'darwin') {
+  try {
+    // Try Homebrew SQLite first (supports extensions)
+    Database.setCustomSQLite('/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib');
+    log('Using Homebrew SQLite (supports extensions)');
+  } catch {
+    try {
+      Database.setCustomSQLite('/usr/local/opt/sqlite/lib/libsqlite3.dylib');
+      log('Using Homebrew SQLite (supports extensions)');
+    } catch {
+      log('Warning: Using system SQLite - extension loading may not work');
+      log('Install Homebrew SQLite with: brew install sqlite');
+    }
+  }
+}
+
 export function initializeDatabase(): Database {
   const db = new Database(DB_PATH, { create: true });
+
+  // Load sqlite-vec extension for fast vector search
+  sqliteVec.load(db);
 
   // Create documents table with BLOB storage for embeddings
   db.run(`
@@ -31,6 +53,15 @@ export function initializeDatabase(): Database {
     )
   `);
 
+  // Create vec0 virtual table for indexed vector search (768 dimensions)
+  // This provides fast KNN search using vector indexes
+  db.run(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
+      document_id INTEGER PRIMARY KEY,
+      embedding FLOAT[768]
+    )
+  `);
+
   // Create indexes for faster lookups
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_filename ON documents(filename)
@@ -46,6 +77,7 @@ export function initializeDatabase(): Database {
 
 export function getDatabase(): Database {
   const db = new Database(DB_PATH);
+  sqliteVec.load(db);
   return db;
 }
 
@@ -79,7 +111,21 @@ export function insertDocument(
     Date.now()
   );
 
-  return result.lastInsertRowid as number;
+  const documentId = result.lastInsertRowid as number;
+
+  // Also insert into vec0 virtual table for indexed vector search
+  // Convert embedding to Float32Array wrapped in Uint8Array for proper binary passing
+  const embeddingVector = new Float32Array(embedding);
+  const embeddingBlob = new Uint8Array(embeddingVector.buffer);
+
+  const vecStmt = db.prepare(`
+    INSERT INTO vec_embeddings (document_id, embedding)
+    VALUES (?, ?)
+  `);
+
+  vecStmt.run(documentId, embeddingBlob);
+
+  return documentId;
 }
 
 export function getAllDocuments(db: Database): Document[] {
@@ -176,5 +222,6 @@ export function getDocumentCount(db: Database): number {
 
 export function clearDatabase(db: Database): void {
   db.run('DELETE FROM documents');
-  log('Database cleared');
+  db.run('DELETE FROM vec_embeddings');
+  log('Database cleared (documents and vec_embeddings)');
 }
