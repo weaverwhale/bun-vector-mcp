@@ -1,6 +1,16 @@
 import { marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
 import type { Source } from '../../types/index';
 import { SourcesList } from './SourcesList';
+
+// Configure marked to use KaTeX for math expressions
+// Supports: $inline math$ and $$display math$$
+marked.use(
+  markedKatex({
+    throwOnError: false,
+    output: 'html',
+  })
+);
 
 interface ResponseDisplayProps {
   isLoading: boolean;
