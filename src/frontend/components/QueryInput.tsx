@@ -196,9 +196,9 @@ export function QueryInput({
         >
           {mode === 'ask' ? 'Your Question:' : 'Search Query:'}
         </label>
-        <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
           {mode === 'ask' && (
-            <div style={{ position: 'relative' }}>
+            <div className="relative flex-1 min-w-[30%]">
               <select
                 id="question-select"
                 value={DEFAULT_QUESTIONS.includes(query) ? query : ''}
@@ -257,37 +257,35 @@ export function QueryInput({
               </svg>
             </div>
           )}
-          {(!DEFAULT_QUESTIONS.includes(query) || mode === 'search') && (
-            <input
-              type="text"
-              id="question"
-              value={query}
-              onChange={e => setQuery(e.currentTarget.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={
-                mode === 'ask'
-                  ? `e.g., ${DEFAULT_QUESTIONS[0]}`
-                  : `e.g., ${DEFAULT_SEARCH_QUERY}`
-              }
-              className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                color:
-                  query.length > 0
-                    ? 'var(--text-primary)'
-                    : 'var(--text-tertiary)',
-                border: '2px solid var(--border-primary)',
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = 'var(--accent-primary)';
-                e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = 'var(--border-primary)';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-          )}
+          <input
+            type="text"
+            id="question"
+            value={query}
+            onChange={e => setQuery(e.currentTarget.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={
+              mode === 'ask'
+                ? `e.g., ${DEFAULT_QUESTIONS[0]}`
+                : `e.g., ${DEFAULT_SEARCH_QUERY}`
+            }
+            className="w-full px-4 py-3 rounded-lg text-base transition-all duration-200"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              color:
+                query.length > 0
+                  ? 'var(--text-primary)'
+                  : 'var(--text-tertiary)',
+              border: '2px solid var(--border-primary)',
+            }}
+            onFocus={e => {
+              e.target.style.borderColor = 'var(--accent-primary)';
+              e.target.style.boxShadow = '0 0 0 3px rgba(106, 124, 158, 0.1)';
+            }}
+            onBlur={e => {
+              e.target.style.borderColor = 'var(--border-primary)';
+              e.target.style.boxShadow = 'none';
+            }}
+          />
         </div>
       </div>
 
