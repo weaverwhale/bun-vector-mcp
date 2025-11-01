@@ -2,6 +2,7 @@ import { Database } from 'bun:sqlite';
 import * as sqliteVec from 'sqlite-vec';
 import type { Document } from '../types/index';
 import { log } from '../utils/logger';
+import { EMBEDDING_DIMENSIONS } from '../constants/providers';
 import {
   serializeVector,
   deserializeVector,
@@ -53,12 +54,13 @@ export function initializeDatabase(): Database {
     )
   `);
 
-  // Create vec0 virtual table for indexed vector search (768 dimensions)
+  // Create vec0 virtual table for indexed vector search
+  // Dimensions dynamically set based on provider (384 for transformers, 768 for ai-sdk)
   // This provides fast KNN search using vector indexes
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
       document_id INTEGER PRIMARY KEY,
-      embedding FLOAT[768]
+      embedding FLOAT[${EMBEDDING_DIMENSIONS}]
     )
   `);
 
