@@ -23,7 +23,7 @@ graph TB
         API[HTTP API<br/>REST Endpoints]
         MCP[MCP Server<br/>Claude Desktop]
     end
-    
+
     subgraph "Core Services"
         INGEST[Ingestion Service<br/>ingest.ts]
         EMBED[Embeddings Service<br/>embeddings.ts]
@@ -32,45 +32,45 @@ graph TB
         LLM[LLM Service<br/>llm.ts]
         QUESTIONS[Question Generator<br/>questions.ts]
     end
-    
+
     subgraph "Data Layer"
         DB[(SQLite Database<br/>vector.db)]
         DOCS[Documents Table<br/>Text + Metadata]
         VEC[vec_embeddings Table<br/>Vector Index]
     end
-    
+
     subgraph "AI Providers"
         TRANS[Transformers.js<br/>Local Models]
         AISDK[AI SDK<br/>OpenAI Compatible]
     end
-    
+
     UI --> API
     MCP --> SEARCH
     MCP --> RAG
     API --> SEARCH
     API --> RAG
     API --> INGEST
-    
+
     INGEST --> EMBED
     INGEST --> QUESTIONS
     INGEST --> DB
-    
+
     SEARCH --> EMBED
     SEARCH --> VEC
-    
+
     RAG --> SEARCH
     RAG --> LLM
-    
+
     EMBED --> TRANS
     EMBED --> AISDK
     LLM --> TRANS
     LLM --> AISDK
     QUESTIONS --> TRANS
     QUESTIONS --> AISDK
-    
+
     DB --> DOCS
     DB --> VEC
-    
+
     style UI fill:#e1f5ff
     style API fill:#e1f5ff
     style MCP fill:#e1f5ff
@@ -90,69 +90,79 @@ The ingestion process transforms raw documents into searchable vector embeddings
 ```mermaid
 flowchart TD
     START[Start: Document File] --> TYPE{File Type?}
-    
+
     TYPE -->|PDF/TXT| EXTRACT[Extract Text<br/>pdf-parse / Bun.file]
     TYPE -->|CSV| PARSECSV[Parse CSV<br/>Detect Schema]
-    
-    EXTRACT --> CHUNK[Text Chunking]
+
+    EXTRACT --> CONTENT[Combined Content]
     PARSECSV --> SCHEMA[Schema Detection<br/>title, content, link, etc.]
-    
-    CHUNK --> SEMANTIC{Semantic<br/>Chunking?}
-    SEMANTIC -->|Yes| SEMCHUNK[Semantic Chunking<br/>Sentence-based splits]
-    SEMANTIC -->|No| FIXCHUNK[Fixed-Size Chunks<br/>~1000 chars]
-    
-    SCHEMA --> COMBINE[Combine Fields<br/>Strip HTML]
-    COMBINE --> CSVCHUNK{Content > 1000?}
-    CSVCHUNK -->|Yes| SEMCHUNK
-    CSVCHUNK -->|No| SINGLE[Single Chunk]
-    
+
+    SCHEMA --> THESIS{Has Thesis/<br/>Question Field?}
+    THESIS -->|Yes| SINGLE[Single Chunk<br/>Keep values intact]
+    THESIS -->|No| COMBINE[Combine Fields<br/>Strip HTML]
+
+    COMBINE --> CONTENT
+    CONTENT --> LENGTH{Content ><br/>CHUNK_SIZE?}
+
+    LENGTH -->|No| SINGLE
+    LENGTH -->|Yes| SEMANTIC{USE_SEMANTIC_<br/>CHUNKING?}
+
+    SEMANTIC -->|true| SEMCHUNK[Semantic Chunking<br/>Sentence-based splits]
+    SEMANTIC -->|false| FIXCHUNK[Fixed-Size Chunks<br/>~1000 chars]
+
     SEMCHUNK --> NORMALIZE
     FIXCHUNK --> NORMALIZE
     SINGLE --> NORMALIZE
-    
+
     NORMALIZE[Normalize Text<br/>Lowercase, remove extra spaces]
-    
+
     NORMALIZE --> CEMBED[Generate Content<br/>Embeddings]
     NORMALIZE --> QGEN[Generate Hypothetical<br/>Questions]
-    
+
     QGEN --> QEMBED[Generate Question<br/>Embeddings]
-    
+
     CEMBED --> STORE
     QEMBED --> STORE
-    
+
     STORE[Store in Database<br/>documents + vec_embeddings]
-    
+
     STORE --> META[Store Metadata<br/>chunk_index, model_version,<br/>chunking_strategy, etc.]
-    
+
     META --> END[End: Indexed Document]
-    
+
     style START fill:#90EE90
     style END fill:#90EE90
     style STORE fill:#FFB6C1
     style CEMBED fill:#DDA0DD
     style QEMBED fill:#DDA0DD
     style QGEN fill:#87CEEB
+    style SEMANTIC fill:#FFD700
+    style LENGTH fill:#FFD700
 ```
 
 ### Ingestion Details
 
 **File Processing:**
+
 - **PDF**: Extracted using `pdf-parse` library
 - **CSV**: Intelligent schema detection for columns (title, content, link, collection, HTML, thesis)
 - **TXT**: Direct text reading via `Bun.file`
 
 **Text Chunking Strategies:**
+
 - **Semantic Chunking**: Splits text at sentence boundaries while maintaining context (preferred)
 - **Fixed-Size Chunking**: Splits into ~1000 character chunks with overlap
 - **CSV Rows**: Each row processed separately; long rows are chunked
 
 **Hypothetical Questions:**
+
 - Generated for each chunk to improve retrieval accuracy
 - Uses local LLM (Transformers.js) or remote API (AI SDK)
 - Example: For a chunk about "vector databases", generates questions like "What is a vector database?" and "How do vector databases work?"
 - These questions are embedded and stored alongside content embeddings
 
 **Metadata Storage:**
+
 - `chunk_index`: Position in original document
 - `embedding_model`: Model version used (e.g., "Xenova/all-MiniLM-L6-v2")
 - `chunking_strategy`: "semantic" or "fixed-size"
@@ -168,38 +178,38 @@ The search system uses a **hybrid approach** combining content similarity and qu
 ```mermaid
 flowchart TD
     START[User Query] --> NORMALIZE[Normalize Query<br/>Lowercase, trim spaces]
-    
+
     NORMALIZE --> EMBED[Generate Query<br/>Embedding]
-    
+
     EMBED --> VECTOR[Convert to Float32Array]
-    
+
     VECTOR --> VEC_SEARCH[sqlite-vec KNN Search<br/>MATCH operator with k=2000]
-    
+
     VEC_SEARCH --> CANDIDATES[Retrieve Top 2000<br/>Candidates by Distance]
-    
+
     CANDIDATES --> HYBRID[Hybrid Scoring]
-    
+
     subgraph "Hybrid Scoring Process"
         HYBRID --> CONTENT[Content Similarity<br/>1.0 - distance/2.0]
         HYBRID --> QUESTIONS[Question Similarity<br/>dot product vs all questions]
-        
+
         CONTENT --> WEIGHT1[× 0.3 weight]
         QUESTIONS --> WEIGHT2[× 0.7 weight]
-        
+
         WEIGHT1 --> COMBINE[Combined Score]
         WEIGHT2 --> COMBINE
     end
-    
+
     COMBINE --> SORT[Sort by Score<br/>Descending]
-    
+
     SORT --> FILTER[Filter by Threshold<br/>default: 0.5]
-    
+
     FILTER --> DEDUP[Deduplicate<br/>by chunk_text]
-    
+
     DEDUP --> TOPK[Take Top K Results<br/>default: 5]
-    
+
     TOPK --> RESULTS[Return Search Results<br/>with similarity scores]
-    
+
     style START fill:#90EE90
     style RESULTS fill:#90EE90
     style VEC_SEARCH fill:#FFB6C1
@@ -210,6 +220,7 @@ flowchart TD
 ### Search Algorithm Details
 
 **Vector Search (sqlite-vec):**
+
 ```sql
 SELECT d.id, d.filename, d.chunk_text, d.question_embeddings, v.distance
 FROM vec_embeddings v
@@ -219,21 +230,25 @@ ORDER BY v.distance
 ```
 
 **Why k=2000?**
+
 - Higher candidate count ensures good recall after filtering
 - Hybrid scoring, threshold filtering, and deduplication reduce final count
 - HNSW index makes this efficient (O(log n) instead of O(n))
 
 **Hybrid Scoring Formula:**
+
 ```
 hybrid_score = (max_question_similarity × 0.7) + (content_similarity × 0.3)
 ```
 
 **Why 70/30 weighting?**
+
 - Questions are generated specifically to match user queries
 - Content similarity alone misses semantic nuances
 - This weighting provides best empirical results
 
 **Deduplication:**
+
 - Removes duplicate chunk_text (same content indexed multiple times)
 - Keeps highest-scoring occurrence
 - Prevents redundant results
@@ -247,14 +262,14 @@ The RAG system retrieves relevant context and uses an LLM to generate accurate, 
 ```mermaid
 flowchart TD
     START[User Question] --> VALIDATE[Validate Input<br/>non-empty, topK, threshold]
-    
+
     VALIDATE --> SEARCH[Search Similar Documents<br/>hybrid vector search]
-    
+
     SEARCH --> CHECK{Results Found?}
-    
+
     CHECK -->|No| NOINFO[Return: No Information<br/>Available]
     CHECK -->|Yes| BUILD[Build Context]
-    
+
     subgraph "Context Building"
         BUILD --> ITERATE[Iterate Search Results]
         ITERATE --> ADD{Within Max<br/>Context Length?}
@@ -262,33 +277,33 @@ flowchart TD
         ADD -->|No| STOP[Stop Adding]
         APPEND --> ITERATE
     end
-    
+
     STOP --> CONTEXT[Final Context String<br/>with --- separators]
-    
+
     CONTEXT --> PROMPT[Build LLM Prompt<br/>System + Context + Question]
-    
+
     PROMPT --> MODE{Streaming?}
-    
+
     MODE -->|Yes| STREAM[Stream LLM Response]
     MODE -->|No| GENERATE[Generate Full Response]
-    
+
     subgraph "Streaming Response"
         STREAM --> EMIT_SOURCES[Emit: Sources Event]
         EMIT_SOURCES --> EMIT_CHUNKS[Emit: Text Chunks]
         EMIT_CHUNKS --> EMIT_DONE[Emit: Done Event]
     end
-    
+
     subgraph "Full Response"
         GENERATE --> WAIT[Wait for Complete Answer]
         WAIT --> RETURN[Return with Sources]
     end
-    
+
     EMIT_DONE --> END
     RETURN --> END
     NOINFO --> END
-    
+
     END[End: User Receives Answer]
-    
+
     style START fill:#90EE90
     style END fill:#90EE90
     style SEARCH fill:#FFB6C1
@@ -300,43 +315,50 @@ flowchart TD
 ### RAG Pipeline Details
 
 **Step 1: Document Retrieval**
+
 - Performs hybrid vector search (see Search Flow above)
 - Default: Top 5 most relevant chunks
 - Configurable similarity threshold (default: 0.5)
 
 **Step 2: Context Building**
+
 - Maximum context length: ~16,000 characters (configurable)
 - Each chunk includes source citation for attribution
 - Format:
+
   ```
   [Source 1: document.pdf, chunk 3]
   <chunk text>
-  
+
   ---
-  
+
   [Source 2: another.pdf, chunk 1]
   <chunk text>
   ```
 
 **Step 3: LLM Prompting**
+
 - **System Prompt**: Instructs LLM to answer based on provided context
 - **Context**: Retrieved document chunks with citations
 - **User Question**: Original question
 
 Default System Prompt:
+
 ```
 You are a helpful AI assistant. Answer the question based on the context provided.
-Be concise, accurate, and cite sources when possible. If the context doesn't 
+Be concise, accurate, and cite sources when possible. If the context doesn't
 contain enough information, say so.
 ```
 
 **Step 4: Answer Generation**
 
-*Non-Streaming Mode:*
+_Non-Streaming Mode:_
+
 - Waits for complete LLM response
 - Returns answer + sources + timing info
 
-*Streaming Mode (SSE):*
+_Streaming Mode (SSE):_
+
 1. `sources` event: Relevant documents with similarity scores
 2. `chunk` events: Text tokens as they're generated
 3. `done` event: Completion timestamp
@@ -350,7 +372,7 @@ The system uses SQLite with the sqlite-vec extension for efficient vector storag
 ```mermaid
 erDiagram
     DOCUMENTS ||--|| VEC_EMBEDDINGS : "1:1 relationship"
-    
+
     DOCUMENTS {
         integer id PK
         text filename
@@ -364,7 +386,7 @@ erDiagram
         text chunk_metadata "JSON metadata"
         integer created_at "Unix timestamp"
     }
-    
+
     VEC_EMBEDDINGS {
         integer document_id PK
         float_array embedding "Vector for HNSW index"
@@ -374,18 +396,21 @@ erDiagram
 ### Schema Details
 
 **documents Table:**
+
 - Main storage for document chunks and metadata
 - `embedding`: Serialized Float32Array as BLOB for JavaScript processing
 - `question_embeddings`: Multiple vectors for hypothetical questions
 - `chunk_metadata`: JSON with chunking strategy, model version, custom fields
 
 **vec_embeddings Virtual Table:**
+
 - Uses sqlite-vec's `vec0` virtual table type
 - Automatically maintains HNSW index for fast KNN search
 - Dimension count: 384 (Transformers.js) or 768 (AI SDK models)
 - Enables `MATCH` operator for indexed search
 
 **Indexes:**
+
 - `idx_filename`: Fast lookup by document name
 - `idx_chunk_index`: Fast ordering within documents
 - HNSW vector index: Automatic in vec_embeddings
@@ -398,16 +423,17 @@ erDiagram
 
 The application exposes a REST API via Bun's built-in HTTP server:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | API information and document count |
-| `/ui` | GET | Web UI (React frontend) |
-| `/health` | GET | Health check with database status |
-| `/search` | POST | Semantic search for similar documents |
-| `/ask` | POST | Ask a question (RAG, full response) |
-| `/ask/stream` | POST | Ask a question (RAG, streaming SSE) |
+| Endpoint      | Method | Description                           |
+| ------------- | ------ | ------------------------------------- |
+| `/`           | GET    | API information and document count    |
+| `/ui`         | GET    | Web UI (React frontend)               |
+| `/health`     | GET    | Health check with database status     |
+| `/search`     | POST   | Semantic search for similar documents |
+| `/ask`        | POST   | Ask a question (RAG, full response)   |
+| `/ask/stream` | POST   | Ask a question (RAG, streaming SSE)   |
 
 **Example `/search` Request:**
+
 ```json
 {
   "query": "What is vector search?",
@@ -417,6 +443,7 @@ The application exposes a REST API via Bun's built-in HTTP server:
 ```
 
 **Example `/ask` Request:**
+
 ```json
 {
   "question": "How do embeddings work?",
@@ -431,11 +458,13 @@ The application exposes a REST API via Bun's built-in HTTP server:
 The MCP (Model Context Protocol) server enables Claude Desktop integration:
 
 **Available Tools:**
+
 - `vector_search`: Search the vector database
 - `vector_ask`: Ask questions with RAG
 - `vector_status`: Get database status
 
 Usage in Claude Desktop:
+
 ```json
 {
   "mcpServers": {
@@ -457,28 +486,32 @@ Usage in Claude Desktop:
 The system supports two provider configurations:
 
 **1. Transformers.js (Local Models)**
+
 ```typescript
-PROVIDER_TYPE = 'transformers'
-EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'  // 384 dimensions
-LLM_MODEL = 'Xenova/Qwen2.5-0.5B-Instruct'
+PROVIDER_TYPE = 'transformers';
+EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'; // 384 dimensions
+LLM_MODEL = 'Xenova/Qwen2.5-0.5B-Instruct';
 ```
 
 **Benefits:**
+
 - Fully offline operation
 - No API costs
 - Privacy-preserving
 - Slower initial load (downloads models)
 
 **2. AI SDK (OpenAI-Compatible APIs)**
+
 ```typescript
-PROVIDER_TYPE = 'ai-sdk'
-EMBEDDING_MODEL = 'text-embedding-3-small'  // 768 dimensions
-LLM_MODEL = 'gpt-4o-mini'
-AI_BASE_URL = 'https://api.openai.com/v1'
-AI_API_KEY = 'sk-...'
+PROVIDER_TYPE = 'ai-sdk';
+EMBEDDING_MODEL = 'text-embedding-3-small'; // 768 dimensions
+LLM_MODEL = 'gpt-4o-mini';
+AI_BASE_URL = 'https://api.openai.com/v1';
+AI_API_KEY = 'sk-...';
 ```
 
 **Benefits:**
+
 - Fast inference
 - No local model downloads
 - Higher quality embeddings and generation
@@ -487,16 +520,19 @@ AI_API_KEY = 'sk-...'
 ### RAG Parameters
 
 **Chunking:**
+
 - `CHUNK_SIZE`: 1000 characters (fixed-size mode)
 - `CHUNK_OVERLAP`: 200 characters
 
 **Search:**
+
 - `DEFAULT_TOP_K`: 5 results
 - `SIMILARITY_THRESHOLD`: 0.5 (50% similarity)
 - `QUESTION_WEIGHT`: 0.7
 - `CONTENT_WEIGHT`: 0.3
 
 **Generation:**
+
 - `MAX_ANSWER_TOKENS`: 800
 - `GENERATION_TEMPERATURE`: 0.7
 - `MAX_CONTEXT_LENGTH`: 16000 characters
@@ -508,27 +544,31 @@ AI_API_KEY = 'sk-...'
 ### Search Performance
 
 **Vector Index (sqlite-vec):**
+
 - Algorithm: HNSW (Hierarchical Navigable Small World)
 - Time Complexity: O(log n) for KNN search
 - Space Complexity: ~1.5x embedding size (index overhead)
 
 **Typical Search Times:**
+
 - 10K documents: 10-30ms
 - 100K documents: 20-50ms
 - 1M documents: 40-100ms
 
-*Note: Times vary based on hardware, embedding dimensions, and k value*
+_Note: Times vary based on hardware, embedding dimensions, and k value_
 
 ### Ingestion Performance
 
 **Bottlenecks:**
+
 1. PDF text extraction: ~1-5 seconds per document
-2. Embedding generation: 
+2. Embedding generation:
    - Local: ~100ms per chunk (Transformers.js)
    - Remote: ~50ms per chunk (AI SDK with batching)
 3. Question generation: ~200ms per chunk (local)
 
 **Optimization Strategies:**
+
 - Batch embedding generation (10 chunks at once)
 - Caching for duplicate texts
 - Parallel processing where possible
@@ -555,12 +595,12 @@ App.tsx
 // Client-side (useQuery hook)
 const eventSource = new EventSource('/ask/stream', {
   method: 'POST',
-  body: JSON.stringify({ question })
+  body: JSON.stringify({ question }),
 });
 
-eventSource.addEventListener('message', (e) => {
+eventSource.addEventListener('message', e => {
   const event = JSON.parse(e.data);
-  
+
   if (event.type === 'sources') {
     setSources(event.sources);
   } else if (event.type === 'chunk') {
@@ -578,21 +618,25 @@ eventSource.addEventListener('message', (e) => {
 ### Running the Application
 
 **Development (with HMR):**
+
 ```bash
 bun --watch src/index.ts
 ```
 
 **Production:**
+
 ```bash
 bun src/index.ts
 ```
 
 **Ingest Documents:**
+
 ```bash
 bun src/scripts/feed.ts [source-directory]
 ```
 
 **MCP Server:**
+
 ```bash
 bun run mcp
 ```
@@ -619,16 +663,19 @@ MCP_MODE=true                  # For MCP server only
 ## System Requirements
 
 **For Transformers.js (Local):**
+
 - 8GB+ RAM (models load into memory)
 - Modern CPU (Apple Silicon recommended)
 - 2GB+ disk space for model cache
 
 **For AI SDK (Remote):**
+
 - Stable internet connection
 - API access (OpenAI, Anthropic, or compatible)
 - Minimal local resources
 
 **General:**
+
 - Bun runtime (latest version)
 - SQLite with extension support
 - Node.js 18+ (for some dependencies)
@@ -642,6 +689,7 @@ MCP_MODE=true                  # For MCP server only
 Pure content similarity misses semantic nuances. By generating and embedding hypothetical questions, we capture the **intent** behind each chunk. This dramatically improves retrieval for natural language queries.
 
 **Example:**
+
 - Chunk: "Vector databases store embeddings as arrays of floating-point numbers."
 - Generated Question: "How are embeddings stored in vector databases?"
 - User Query: "embedding storage format"
@@ -682,11 +730,13 @@ The user query matches the question better than the raw content, leading to bett
 ### Scalability Considerations
 
 **Current Limits:**
+
 - Single SQLite file (~1TB theoretical max)
 - In-memory embeddings during ingestion
 - Single-threaded search (sqlite-vec limitation)
 
 **For Large Scale:**
+
 - Consider PostgreSQL with pgvector extension
 - Implement distributed search (e.g., Qdrant, Weaviate)
 - Add caching layer (Redis) for frequent queries
@@ -699,19 +749,23 @@ The user query matches the question better than the raw content, leading to bett
 ### Common Issues
 
 **sqlite-vec extension not loading:**
+
 - Solution: Install Homebrew SQLite: `brew install sqlite`
 - Verify: Check logs for "Using Homebrew SQLite"
 
 **Out of memory during ingestion:**
+
 - Solution: Process files in smaller batches
 - Reduce `CHUNK_SIZE` or use fixed-size chunking
 
 **Slow search performance:**
+
 - Check document count (may need database optimization)
 - Reduce `topK` or increase `SIMILARITY_THRESHOLD`
 - Ensure vec_embeddings index is built
 
 **Poor answer quality:**
+
 - Increase `topK` for more context
 - Lower `SIMILARITY_THRESHOLD` to get more results
 - Adjust system prompt for better instructions
@@ -724,4 +778,3 @@ The user query matches the question better than the raw content, leading to bett
 This RAG system demonstrates a production-ready architecture for semantic search and question answering. By combining modern web technologies (Bun, React) with advanced AI techniques (embeddings, hybrid search, LLMs), it provides a powerful and flexible platform for working with document collections.
 
 The modular design allows easy customization of embedding models, LLM providers, chunking strategies, and search algorithms, making it adaptable to a wide range of use cases from personal knowledge bases to enterprise documentation systems.
-
