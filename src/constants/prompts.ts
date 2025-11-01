@@ -16,6 +16,9 @@ import { QUESTIONS_PER_CHUNK } from './rag';
 
 export const DEFAULT_SEARCH_QUERY = 'roas';
 export const DEFAULT_QUESTIONS = [
+  'What is attribution?',
+  'How does the triple pixel work?',
+  'Does Triple Whale have a mobile app?',
   'What is triple pixel and what does it do?',
   'What does non-attributed mean in the pixel?',
   'Are we able to add variable expense based on percent of ad revenue instead of ad spend?',
