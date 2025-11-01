@@ -11,7 +11,8 @@ import type {
   AskStreamRequest,
   StreamEvent,
 } from './types/index';
-import indexHtml from './frontend/index.html';
+import queryPageHtml from './frontend/pages/query/query.html';
+import docsPageHtml from './frontend/pages/docs/docs.html';
 import { DEFAULT_TOP_K, SIMILARITY_THRESHOLD } from './constants/rag';
 
 // Initialize on startup
@@ -23,28 +24,25 @@ const server = Bun.serve({
   port: 1738,
   idleTimeout: 120,
   routes: {
-    '/': {
-      GET: () => {
-        const count = getDocumentCount(db);
-        return new Response(
-          JSON.stringify({
-            status: 'ok',
-            message: 'Vector Database API',
-            documents: count,
-            endpoints: {
-              search: 'POST /search',
-              ask: 'POST /ask',
-              health: 'GET /health',
-              ui: 'GET /ui',
-            },
-          }),
-          {
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+    '/': queryPageHtml,
+    '/ui': queryPageHtml, // Alias for backwards compatibility
+    '/docs': docsPageHtml,
+    '/docs/content': {
+      GET: async () => {
+        try {
+          const file = Bun.file('./src/frontend/pages/docs/ARCHITECTURE.md');
+          const content = await file.text();
+          return new Response(content, {
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        } catch (error) {
+          return new Response('Documentation not found', {
+            status: 404,
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        }
       },
     },
-    '/ui': indexHtml,
     '/health': {
       GET: () => {
         const count = getDocumentCount(db);
@@ -53,6 +51,13 @@ const server = Bun.serve({
             status: 'healthy',
             documents: count,
             timestamp: new Date().toISOString(),
+            endpoints: {
+              search: 'POST /search',
+              ask: 'POST /ask',
+              health: 'GET /health',
+              home: 'GET /',
+              docs: 'GET /docs',
+            },
           }),
           {
             headers: { 'Content-Type': 'application/json' },
@@ -291,8 +296,8 @@ console.log(
 );
 console.log(`📊 Currently storing ${getDocumentCount(db)} document chunks`);
 console.log('\nEndpoints:');
-console.log('  GET  / - API information');
-console.log('  GET  /ui - Web UI for asking questions');
+console.log('  GET  / - Web UI for asking questions');
+console.log('  GET  /docs - Architecture documentation');
 console.log('  GET  /health - Health check');
 console.log('  POST /search - Search similar documents');
 console.log('  POST /ask - Ask a question (RAG)');
@@ -309,4 +314,7 @@ console.log('\nExample streaming ask:');
 console.log(`  curl -N -X POST http://localhost:${server.port}/ask/stream \\`);
 console.log(`    -H "Content-Type: application/json" \\`);
 console.log(`    -d '{"question": "What is vector search?"}'`);
-console.log(`\n💻 Web UI available at: http://localhost:${server.port}/ui`);
+console.log(`\n💻 Web UI available at: http://localhost:${server.port}`);
+console.log(
+  `📚 Documentation available at: http://localhost:${server.port}/docs`
+);

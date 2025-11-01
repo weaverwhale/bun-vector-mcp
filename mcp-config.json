@@ -2,7 +2,7 @@
   "mcpServers": {
     "mw-vector": {
       "command": "bun",
-      "args": ["mcp-server.ts"],
+      "args": ["mcp.ts"],
       "cwd": "PUBLIC_ENDPOINT",
       "env": {}
     }

@@ -83,7 +83,7 @@ This vector database can be used as an MCP (Model Context Protocol) server with 
   "mcpServers": {
     "mw-vector": {
       "command": "bun",
-      "args": ["mcp-server.ts"],
+      "args": ["mcp.ts"],
       "cwd": "PUBLIC_ENDPOINT"
     }
   }
@@ -166,35 +166,6 @@ Server health status and document count
 ### `POST /search`
 
 Search for similar documents
-
-## Project Structure
-
-```text
-/src/
-├── db/
-│   └── schema.ts         # Database schema and operations
-├── services/
-│   ├── embeddings.ts     # Embedding generation
-│   ├── ingest.ts         # File processing and chunking
-│   ├── llm.ts            # Local LLM for text generation
-│   ├── questions.ts      # Question generation for HQE
-│   ├── rag.ts            # RAG implementation
-│   └── search.ts         # Hybrid vector similarity search
-├── scripts/
-│   ├── feed.ts           # CLI ingestion script
-│   └── migrate.ts        # Database migration script
-├── types/
-│   └── index.ts          # TypeScript type definitions
-├── constants/
-│   ├── rag.ts            # RAG configuration (chunk size, weights, etc.)
-│   ├── providers.ts      # Provider configuration
-│   └── prompts.ts        # System prompts
-├── index.ts              # REST API server
-├── mcp-server.ts         # MCP server implementation
-├── package.json
-├── README.md
-└── HYBRID_RAG.md         # Documentation on HQE approach
-```
 
 ## How It Works
 

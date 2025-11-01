@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import type { QueryMode } from '../types/index';
-import { DEFAULT_TOP_K, SIMILARITY_THRESHOLD } from '../constants/rag';
-import { QueryInput } from './components/QueryInput';
-import { ResponseDisplay } from './components/ResponseDisplay';
-import { ThemeToggle } from './components/ThemeToggle';
-import { useQuery } from './hooks/useQuery';
-import { useDarkMode } from './hooks/useDarkMode';
+import type { QueryMode } from '../../../types/index';
+import { DEFAULT_TOP_K, SIMILARITY_THRESHOLD } from '../../../constants/rag';
+import { QueryInput } from '../../components/QueryInput';
+import { ResponseDisplay } from '../../components/ResponseDisplay';
+import { ThemeToggle } from '../../components/ThemeToggle';
+import { DocsButton } from '../../components/DocsButton';
+import { useQuery } from '../../hooks/useQuery';
+import { useDarkMode } from '../../hooks/useDarkMode';
 
-export function App() {
+export function QueryPage() {
   const [mode, setMode] = useState<QueryMode>('ask');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [query, setQuery] = useState('');
@@ -78,7 +79,10 @@ export function App() {
               Ask questions and get answers from your document collection
             </p>
           </div>
-          <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleTheme} />
+          <div className="flex items-center gap-3">
+            <DocsButton />
+            <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleTheme} />
+          </div>
         </div>
 
         <QueryInput

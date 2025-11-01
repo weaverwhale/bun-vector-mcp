@@ -3,17 +3,21 @@
 ## 🚀 Get Started in 3 Steps
 
 ### 1. Feed Your Documents
+
 Place PDF or text files in the `./source` folder, then run:
+
 ```bash
 bun run feed
 ```
 
 ### 2. Start the Server
+
 ```bash
 bun start
 ```
 
 ### 3. Search Your Data
+
 ```bash
 curl -X POST http://localhost:1738/search \
   -H "Content-Type: application/json" \
@@ -23,6 +27,7 @@ curl -X POST http://localhost:1738/search \
 ## 📝 Example Usage
 
 Run the included example:
+
 ```bash
 bun example.ts
 ```
@@ -56,7 +61,7 @@ This database supports MCP; see the example config below:
   "mcpServers": {
     "mw-vector": {
       "command": "bun",
-      "args": ["mcp-server.ts"],
+      "args": ["mcp.ts"],
       "cwd": "PUBLIC_ENDPOINT"
     }
   }
@@ -71,4 +76,3 @@ See `MCP-SETUP.md` for detailed instructions.
 - Chunks are 500 characters with 100 character overlap
 - Similarity scores range from 0 (different) to 1 (identical)
 - Results are sorted by similarity (highest first)
-
