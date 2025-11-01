@@ -2,6 +2,7 @@
 export const CHUNK_SIZE = 1200;
 export const CHUNK_OVERLAP = 400;
 export const MIN_CHUNK_SIZE = 50;
+export const USE_SEMANTIC_CHUNKING = true;
 
 // Question Generation (for Hypothetical Question Embedding)
 export const QUESTIONS_PER_CHUNK = 5;

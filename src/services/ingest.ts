@@ -4,7 +4,7 @@ import { generateEmbeddings, getEmbeddingModelVersion } from './embeddings';
 import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index';
 import { PROVIDER_TYPE } from '../constants/providers';
-import { CHUNK_SIZE } from '../constants/rag';
+import { CHUNK_SIZE, USE_SEMANTIC_CHUNKING } from '../constants/rag';
 import { IngestionError } from '../utils/errors';
 import { parseCSV, detectCSVSchema } from '../utils/csvs';
 import {
@@ -135,12 +135,14 @@ export async function ingestCSV(
       }
 
       // If we have a provided question/thesis, keep as single Q&A pair (don't chunk)
-      // Otherwise, use semantic chunking for long content
+      // Otherwise, use semantic or fixed-size chunking based on configuration
       const chunks =
         thesisField && thesisField.trim()
           ? [combinedText] // Keep Q&A pairs intact
           : combinedText.length > CHUNK_SIZE
-            ? await semanticChunking(combinedText)
+            ? USE_SEMANTIC_CHUNKING
+              ? await semanticChunking(combinedText)
+              : chunkText(combinedText)
             : [combinedText];
 
       if (chunks.length > 1) {
@@ -231,8 +233,7 @@ export async function ingestCSV(
 
 export async function ingestFile(
   db: Database,
-  filePath: string,
-  useSemanticChunking: boolean = false
+  filePath: string
 ): Promise<IngestResult> {
   const filename = filePath.split('/').pop() || filePath;
   const ext = filePath.toLowerCase().split('.').pop();
@@ -258,9 +259,12 @@ export async function ingestFile(
     }
 
     // Split into chunks (semantic or fixed-size)
-    const chunks = useSemanticChunking
-      ? await semanticChunking(content)
-      : chunkText(content);
+    const chunks =
+      content.length > CHUNK_SIZE
+        ? USE_SEMANTIC_CHUNKING
+          ? await semanticChunking(content)
+          : chunkText(content)
+        : [content];
     console.log(`  Created ${chunks.length} chunks`);
 
     if (chunks.length === 0) {
@@ -328,7 +332,7 @@ export async function ingestFile(
         char_start: content.indexOf(chunk),
         char_end: content.indexOf(chunk) + chunk.length,
         embedding_model: modelVersion,
-        chunking_strategy: useSemanticChunking ? 'semantic' : 'fixed-size',
+        chunking_strategy: USE_SEMANTIC_CHUNKING ? 'semantic' : 'fixed-size',
         ingestion_date: new Date().toISOString(),
       };
 
