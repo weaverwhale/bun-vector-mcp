@@ -267,7 +267,7 @@ interface SemanticUnit {
 }
 
 /**
- * Detect semantic boundaries in text (code blocks, SQL, lists, paragraphs)
+ * Detect semantic boundaries in text (code blocks, SQL, lists, prose)
  * Returns units tagged with their type for differential handling
  */
 function detectSemanticUnits(text: string): SemanticUnit[] {
@@ -277,7 +277,6 @@ function detectSemanticUnits(text: string): SemanticUnit[] {
   let currentUnit = '';
   let currentType: 'code' | 'sql' | 'list' | 'prose' = 'prose';
   let inCodeBlock = false;
-  let codeBlockFence = '';
   let inSqlBlock = false;
   let inList = false;
 
@@ -295,7 +294,6 @@ function detectSemanticUnits(text: string): SemanticUnit[] {
         }
         inCodeBlock = true;
         currentType = 'code';
-        codeBlockFence = trimmedLine;
         currentUnit = line + '\n';
       } else {
         // End of code block
@@ -304,7 +302,6 @@ function detectSemanticUnits(text: string): SemanticUnit[] {
         currentUnit = '';
         inCodeBlock = false;
         currentType = 'prose';
-        codeBlockFence = '';
       }
       continue;
     }
@@ -365,28 +362,19 @@ function detectSemanticUnits(text: string): SemanticUnit[] {
       currentType = 'prose';
     }
 
-    // Detect paragraph breaks (double newline or heading)
+    // For prose, split on paragraph boundaries (double newlines)
     if (trimmedLine === '') {
       if (currentUnit.trim()) {
-        // Don't create unit yet, just note the break
-        currentUnit += '\n';
+        // Save current prose unit at paragraph boundary
+        units.push({ content: currentUnit.trim(), type: currentType });
+        currentUnit = '';
+        inList = false;
       }
       continue;
     }
 
     // Regular line - add to current unit
     currentUnit += line + '\n';
-
-    // Check if current unit is getting large
-    if (currentUnit.length > CHUNK_SIZE * 0.8 && trimmedLine === '') {
-      // Natural break point
-      if (currentUnit.trim()) {
-        units.push({ content: currentUnit.trim(), type: currentType });
-        currentUnit = '';
-        inList = false;
-        currentType = 'prose';
-      }
-    }
   }
 
   // Add final unit
@@ -399,22 +387,16 @@ function detectSemanticUnits(text: string): SemanticUnit[] {
 
 /**
  * Split a large prose unit into smaller chunks at sentence boundaries
- * Respects CHUNK_SIZE while trying to keep sentences together
  */
 function splitProseUnit(text: string): string[] {
   if (text.length <= CHUNK_SIZE) {
     return [text];
   }
 
-  // Split into sentences
   const sentences = splitIntoSentences(text);
 
-  if (sentences.length === 0) {
-    return [text];
-  }
-
   // If we only have one very long sentence, split it by words
-  if (sentences.length === 1 && text.length > CHUNK_SIZE) {
+  if (sentences.length === 1) {
     return chunkText(text);
   }
 
@@ -444,46 +426,44 @@ function splitProseUnit(text: string): string[] {
 }
 
 /**
- * Semantic chunking that respects code blocks, SQL queries, lists, and semantic boundaries
+ * Semantic chunking that preserves code blocks, SQL queries, and lists
  * Alternative to fixed-size chunking that keeps important content together
  */
 export async function semanticChunking(text: string): Promise<string[]> {
   if (!text || text.trim().length === 0) return [];
 
-  // First, detect semantic units (code blocks, SQL, lists, paragraphs)
+  // Detect semantic units (code blocks, SQL, lists, prose)
   const units = detectSemanticUnits(text);
 
   if (units.length === 0) return [text];
   if (units.length === 1 && units[0]!.content.length <= CHUNK_SIZE)
     return [units[0]!.content];
 
-  // Now process units based on their type
+  // Process units: preserve code/SQL/lists, split prose if needed
   const processedUnits: string[] = [];
 
   for (const unit of units) {
-    // For code, SQL, and list units, keep them together even if large (per user preference)
     if (unit.type === 'code' || unit.type === 'sql' || unit.type === 'list') {
+      // Keep code blocks, SQL, and lists intact
       processedUnits.push(unit.content);
-    } else if (unit.type === 'prose') {
-      // For prose units, split them if they're larger than CHUNK_SIZE
+    } else {
+      // Split prose if it exceeds CHUNK_SIZE
       if (unit.content.length > CHUNK_SIZE) {
-        const proseChunks = splitProseUnit(unit.content);
-        processedUnits.push(...proseChunks);
+        processedUnits.push(...splitProseUnit(unit.content));
       } else {
         processedUnits.push(unit.content);
       }
     }
   }
 
-  // Now group the processed units into final chunks, respecting CHUNK_SIZE
+  // Combine small adjacent prose chunks up to CHUNK_SIZE
   const chunks: string[] = [];
   let currentChunk = '';
 
   for (const unit of processedUnits) {
     const candidateChunk = currentChunk ? currentChunk + '\n\n' + unit : unit;
 
-    // If adding this unit would exceed chunk size significantly, start a new chunk
-    // Use a stricter threshold to avoid overly large chunks
+    // If adding this unit would exceed chunk size, start a new chunk
     if (candidateChunk.length > CHUNK_SIZE && currentChunk.trim()) {
       chunks.push(currentChunk.trim());
       currentChunk = unit;
@@ -498,33 +478,6 @@ export async function semanticChunking(text: string): Promise<string[]> {
   }
 
   return chunks.filter(chunk => chunk.length >= MIN_CHUNK_SIZE);
-}
-
-/**
- * Gets the last N characters of text, trying to start at a sentence boundary
- */
-function getOverlapText(text: string, targetLength: number): string {
-  if (text.length <= targetLength) {
-    return text;
-  }
-
-  const startPos = text.length - targetLength;
-  const substring = text.substring(startPos);
-
-  // Try to find a sentence boundary (., !, ?) in the overlap region
-  const sentenceBoundary = substring.search(/[.!?]\s+/);
-
-  if (sentenceBoundary !== -1) {
-    return substring.substring(sentenceBoundary + 2).trim();
-  }
-
-  // Otherwise, try to find a word boundary
-  const wordBoundary = substring.indexOf(' ');
-  if (wordBoundary !== -1) {
-    return substring.substring(wordBoundary + 1).trim();
-  }
-
-  return substring.trim();
 }
 
 export async function extractTextFromPDF(filePath: string): Promise<string> {
