@@ -8,7 +8,7 @@ This is a **Retrieval-Augmented Generation (RAG)** system built with Bun runtime
 
 - **Bun Runtime**: Modern JavaScript runtime with built-in SQLite, HTTP server, and fast bundler
 - **sqlite-vec**: Vector similarity search extension with HNSW indexing for O(log n) performance
-- **Transformers.js / AI SDK**: Flexible embedding and LLM provider support (local or remote)
+- **AI SDK**: Flexible embedding and LLM provider support (OpenAI-compatible APIs)
 - **React**: Frontend UI with streaming response support
 - **Model Context Protocol (MCP)**: Integration with Claude Desktop
 
@@ -40,7 +40,6 @@ graph TB
     end
 
     subgraph "AI Providers"
-        TRANS[Transformers.js<br/>Local Models]
         AISDK[AI SDK<br/>OpenAI Compatible]
     end
 
@@ -61,11 +60,8 @@ graph TB
     RAG --> SEARCH
     RAG --> LLM
 
-    EMBED --> TRANS
     EMBED --> AISDK
-    LLM --> TRANS
     LLM --> AISDK
-    QUESTIONS --> TRANS
     QUESTIONS --> AISDK
 
     DB --> DOCS
@@ -77,7 +73,6 @@ graph TB
     style DB fill:#ffe1f5
     style DOCS fill:#ffe1f5
     style VEC fill:#ffe1f5
-    style TRANS fill:#f0e1ff
     style AISDK fill:#f0e1ff
 ```
 
@@ -157,7 +152,7 @@ flowchart TD
 **Hypothetical Questions:**
 
 - Generated for each chunk to improve retrieval accuracy
-- Uses local LLM (Transformers.js) or remote API (AI SDK)
+- Uses AI SDK with LLM model
 - Example: For a chunk about "vector databases", generates questions like "What is a vector database?" and "How do vector databases work?"
 - These questions are embedded and stored alongside content embeddings
 
@@ -193,8 +188,8 @@ flowchart TD
         HYBRID --> CONTENT[Content Similarity<br/>1.0 - distance/2.0]
         HYBRID --> QUESTIONS[Question Similarity<br/>dot product vs all questions]
 
-        CONTENT --> WEIGHT1[× 0.3 weight]
-        QUESTIONS --> WEIGHT2[× 0.7 weight]
+        CONTENT --> WEIGHT1[× 0.4 weight]
+        QUESTIONS --> WEIGHT2[× 0.6 weight]
 
         WEIGHT1 --> COMBINE[Combined Score]
         WEIGHT2 --> COMBINE
@@ -238,10 +233,10 @@ ORDER BY v.distance
 **Hybrid Scoring Formula:**
 
 ```
-hybrid_score = (max_question_similarity × 0.7) + (content_similarity × 0.3)
+hybrid_score = (max_question_similarity × 0.6) + (content_similarity × 0.4)
 ```
 
-**Why 70/30 weighting?**
+**Why 60/40 weighting?**
 
 - Questions are generated specifically to match user queries
 - Content similarity alone misses semantic nuances
@@ -322,7 +317,7 @@ flowchart TD
 
 **Step 2: Context Building**
 
-- Maximum context length: ~16,000 characters (configurable)
+- Maximum context length: ~96,000 characters (configurable)
 - Each chunk includes source citation for attribution
 - Format:
 
@@ -406,7 +401,7 @@ erDiagram
 
 - Uses sqlite-vec's `vec0` virtual table type
 - Automatically maintains HNSW index for fast KNN search
-- Dimension count: 384 (Transformers.js) or 768 (AI SDK models)
+- Dimension count: 768 (default for nomic-embed-text, configurable)
 - Enables `MATCH` operator for indexed search
 
 **Indexes:**
@@ -481,33 +476,15 @@ Usage in Claude Desktop:
 
 ## Configuration
 
-### Provider Types
+### Provider Type
 
-The system supports two provider configurations:
-
-**1. Transformers.js (Local Models)**
+The system uses **AI SDK** with OpenAI-compatible APIs:
 
 ```typescript
-PROVIDER_TYPE = 'transformers';
-EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'; // 384 dimensions
-LLM_MODEL = 'Xenova/Qwen2.5-0.5B-Instruct';
-```
-
-**Benefits:**
-
-- Fully offline operation
-- No API costs
-- Privacy-preserving
-- Slower initial load (downloads models)
-
-**2. AI SDK (OpenAI-Compatible APIs)**
-
-```typescript
-PROVIDER_TYPE = 'ai-sdk';
-EMBEDDING_MODEL = 'text-embedding-3-small'; // 768 dimensions
-LLM_MODEL = 'gpt-4o-mini';
-AI_BASE_URL = 'https://api.openai.com/v1';
-AI_API_KEY = 'sk-...';
+EMBEDDING_MODEL = 'text-embedding-nomic-embed-text-v1.5';
+LLM_MODEL = 'qwen3-1.7b';
+AI_BASE_URL = 'http://localhost:1234/v1';
+AI_API_KEY = 'lm-studio';
 ```
 
 **Benefits:**
@@ -515,7 +492,8 @@ AI_API_KEY = 'sk-...';
 - Fast inference
 - No local model downloads
 - Higher quality embeddings and generation
-- Requires API access and credits
+- Flexible model selection
+- Works with LMStudio, OpenAI, or any compatible API
 
 ### RAG Parameters
 
@@ -528,14 +506,14 @@ AI_API_KEY = 'sk-...';
 
 - `DEFAULT_TOP_K`: 5 results
 - `SIMILARITY_THRESHOLD`: 0.5 (50% similarity)
-- `QUESTION_WEIGHT`: 0.7
-- `CONTENT_WEIGHT`: 0.3
+- `QUESTION_WEIGHT`: 0.6
+- `CONTENT_WEIGHT`: 0.4
 
 **Generation:**
 
-- `MAX_ANSWER_TOKENS`: 800
-- `GENERATION_TEMPERATURE`: 0.7
-- `MAX_CONTEXT_LENGTH`: 16000 characters
+- `MAX_ANSWER_TOKENS`: 6000
+- `GENERATION_TEMPERATURE`: 0.3
+- `MAX_CONTEXT_LENGTH`: 96000 characters
 
 ---
 
@@ -562,10 +540,8 @@ _Note: Times vary based on hardware, embedding dimensions, and k value_
 **Bottlenecks:**
 
 1. PDF text extraction: ~1-5 seconds per document
-2. Embedding generation:
-   - Local: ~100ms per chunk (Transformers.js)
-   - Remote: ~50ms per chunk (AI SDK with batching)
-3. Question generation: ~200ms per chunk (local)
+2. Embedding generation: ~50ms per chunk (with batching)
+3. Question generation: ~200ms per chunk
 
 **Optimization Strategies:**
 
@@ -645,11 +621,10 @@ bun run mcp
 
 ```bash
 # Provider configuration
-PROVIDER_TYPE=ai-sdk           # or 'transformers'
-EMBEDDING_MODEL=text-embedding-3-small
-LLM_MODEL=gpt-4o-mini
-AI_BASE_URL=https://api.openai.com/v1
-AI_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
+LLM_MODEL=qwen3-1.7b
+AI_BASE_URL=http://localhost:1234/v1
+AI_API_KEY=lm-studio
 
 # Database
 DB_PATH=./vector.db
@@ -662,15 +637,9 @@ MCP_MODE=true                  # For MCP server only
 
 ## System Requirements
 
-**For Transformers.js (Local):**
+**For AI SDK:**
 
-- 8GB+ RAM (models load into memory)
-- Modern CPU (Apple Silicon recommended)
-- 2GB+ disk space for model cache
-
-**For AI SDK (Remote):**
-
-- Stable internet connection
+- Stable internet connection (for cloud APIs) or local LMStudio server
 - API access (OpenAI, Anthropic, or compatible)
 - Minimal local resources
 

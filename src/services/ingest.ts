@@ -3,7 +3,6 @@ import { insertDocument } from '../db/schema';
 import { generateEmbeddings, getEmbeddingModelVersion } from './embeddings';
 import { generateQuestions, initializeQuestionGenerator } from './questions';
 import type { IngestResult } from '../types/index';
-import { PROVIDER_TYPE } from '../constants/providers';
 import { CHUNK_SIZE, USE_SEMANTIC_CHUNKING } from '../constants/rag';
 import { IngestionError } from '../utils/errors';
 import { parseCSV, detectCSVSchema } from '../utils/csvs';
@@ -62,8 +61,8 @@ export async function ingestCSV(
       if (schema.thesis) console.log(`    - Thesis: ${schema.thesis}`);
     }
 
-    // Initialize question generator if using local model
-    if (PROVIDER_TYPE === 'transformers' && !schema.thesis) {
+    // Initialize question generator
+    if (!schema.thesis) {
       console.log('  Initializing question generator...');
       await initializeQuestionGenerator();
     }
@@ -276,11 +275,9 @@ export async function ingestFile(
       };
     }
 
-    // Initialize question generator if using local model (transformers)
-    if (PROVIDER_TYPE === 'transformers') {
-      console.log('  Initializing question generator...');
-      await initializeQuestionGenerator();
-    }
+    // Initialize question generator
+    console.log('  Initializing question generator...');
+    await initializeQuestionGenerator();
 
     // Batch process embeddings and questions
     console.log('  Generating embeddings for all chunks...');

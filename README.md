@@ -6,7 +6,7 @@ A type-safe vector database built with Bun, using SQLite for storage and hybrid 
 
 - 🚀 Built with Bun for maximum performance
 - 📊 SQLite-based storage using `bun:sqlite`
-- 🤖 Transformers or AI SDK integration with support for multiple providers
+- 🤖 AI SDK integration with support for multiple providers
 - 🧠 Hybrid Question-Based RAG using Hypothetical Question Embedding (HQE)
 - 📄 PDF and text file support
 - 🔍 Advanced semantic search via weighted hybrid similarity
@@ -21,35 +21,16 @@ bun install
 
 ## Configuration
 
-This project supports **two provider options**:
+This project uses **AI SDK** for embeddings and LLM functionality. You can use LMStudio, OpenAI, or any OpenAI-compatible API.
 
-### Option 1: Transformers (Local, Default)
-
-**No configuration needed!** Just install and run. Perfect for:
-
-- Quick local development
-- No external dependencies or API keys
-- Offline usage
-
-Uses:
-
-- `Xenova/all-MiniLM-L6-v2` for embeddings (384 dimensions)
-- `Xenova/Phi-3-mini-4k-instruct` for LLM
-- Models (~80MB) download automatically on first run and are cached
-
-### Option 2: AI SDK (LMStudio/Cloud Providers)
-
-For more powerful models or cloud integration, set `PROVIDER_TYPE=ai-sdk` in your `.env` file:
-
-#### LMStudio Setup
+### LMStudio Setup (Recommended for Local)
 
 1. Download and install [LMStudio](https://lmstudio.ai/)
 2. Load your preferred embedding model and LLM in LMStudio
 3. Start the LMStudio server (default: `http://localhost:1234`)
-4. Create a `.env` file:
+4. Create a `.env` file (optional, defaults work with LMStudio):
 
 ```bash
-PROVIDER_TYPE=ai-sdk
 AI_PROVIDER=openai
 AI_BASE_URL=http://localhost:1234/v1
 AI_API_KEY=lm-studio
@@ -59,10 +40,9 @@ LLM_MODEL=llama-3.2-3b-instruct
 EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
 ```
 
-#### OpenAI or Other Cloud Providers
+### OpenAI or Other Cloud Providers
 
 ```bash
-PROVIDER_TYPE=ai-sdk
 AI_PROVIDER=openai
 AI_BASE_URL=https://api.openai.com/v1
 AI_API_KEY=your-openai-api-key
@@ -116,8 +96,8 @@ bun scripts/feed.ts /path/to/your/documents
 This will:
 
 - Extract text from all PDF and TXT files
-- Split content into chunks (1400 chars with 400 char overlap)
-- Generate 4 hypothetical questions per chunk using LLM
+- Split content into chunks (1200 chars with 400 char overlap)
+- Generate 5 hypothetical questions per chunk using LLM
 - Generate embeddings for content AND questions using your configured embedding model
 - Store everything in the SQLite database
 
@@ -175,13 +155,13 @@ This system uses an advanced **Hypothetical Question Embedding (HQE)** approach:
 
 1. **Ingestion**:
    - Documents are parsed and split into overlapping chunks
-   - For each chunk, an LLM generates 3-5 hypothetical questions the chunk would answer
+   - For each chunk, an LLM generates 5 hypothetical questions the chunk would answer
    - Both the content AND the questions are embedded
    - All embeddings stored in SQLite with metadata
 
 2. **Search**:
    - Query text is embedded using the same model
-   - **Hybrid scoring**: Similarity computed against both question embeddings (70% weight) and content embeddings (30% weight)
+   - **Hybrid scoring**: Similarity computed against both question embeddings (60% weight) and content embeddings (40% weight)
    - This matches user queries more accurately since queries are naturally question-like
 
 3. **Results**: Top-K most similar chunks returned based on weighted hybrid score
@@ -197,41 +177,22 @@ This system uses an advanced **Hypothetical Question Embedding (HQE)** approach:
 
 ## Technical Details
 
-### Provider Comparison
-
-| Feature         | Transformers (Default)            | AI SDK                         |
-| --------------- | --------------------------------- | ------------------------------ |
-| **Setup**       | Zero config, works out of the box | Requires .env configuration    |
-| **Models**      | Fixed: ONNX models                | Flexible: Any compatible model |
-| **Network**     | Offline capable                   | Requires server/API access     |
-| **Performance** | Good for local use                | Depends on provider            |
-| **Cost**        | Free                              | Free (LMStudio) or API costs   |
-| **Best For**    | Quick dev, offline, privacy       | Production, powerful models    |
-
 ### Configuration
 
-- **Default Provider**: Transformers (local)
-- **Alternative Provider**: AI SDK (LMStudio/OpenAI/etc) - see `PROVIDER_TYPE` in `.env`
-- **Embedding Dimensions**: 384 (transformers) or varies (AI SDK)
-- **Chunk Size**: 1400 characters with 400 character overlap
-- **Questions Per Chunk**: 4 (configurable in `src/constants/rag.ts`)
-- **Hybrid Search Weights**: 70% question similarity, 30% content similarity
+- **Provider**: AI SDK (LMStudio/OpenAI/etc)
+- **Embedding Model**: Configurable via environment variable (default: nomic-embed-text)
+- **Embedding Dimensions**: 768 (default for nomic-embed-text)
+- **Chunk Size**: 1200 characters with 400 character overlap
+- **Questions Per Chunk**: 5 (configurable in `src/constants/rag.ts`)
+- **Hybrid Search Weights**: 60% question similarity, 40% content similarity
 - **Similarity Metric**: Cosine similarity
 - **Database**: SQLite via `bun:sqlite`
 
 ## Performance
 
-### Transformers (Default)
-
-- First run downloads models (~80MB)
-- Subsequent runs use cached models
-- Works completely offline
-
-### AI SDK
-
-- LMStudio: Ensure models are loaded before running
-- Cloud providers: API rate limits and costs may apply
-- Can use more powerful models for better results
+- **LMStudio**: Ensure models are loaded before running
+- **Cloud providers**: API rate limits and costs may apply
+- **Can use more powerful models for better results**
 
 ## License
 

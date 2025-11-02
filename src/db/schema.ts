@@ -55,7 +55,7 @@ export function initializeDatabase(): Database {
   `);
 
   // Create vec0 virtual table for indexed vector search
-  // Dimensions dynamically set based on provider (384 for transformers, 768 for ai-sdk)
+  // Dimensions dynamically set based on embedding model (typically 768 for AI SDK models)
   // This provides fast KNN search using vector indexes
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
