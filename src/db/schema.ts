@@ -3,6 +3,7 @@ import * as sqliteVec from 'sqlite-vec';
 import type { Document } from '../types/index';
 import { log } from '../utils/logger';
 import { EMBEDDING_DIMENSIONS } from '../constants/providers';
+import { DB_PATH } from '../constants/dirs';
 import {
   serializeVector,
   deserializeVector,
@@ -10,7 +11,6 @@ import {
   deserializeVectors,
 } from '../utils/vectors';
 
-const DB_PATH = process.env.DB_PATH || './vector.db';
 log(`Using database at: ${DB_PATH}`);
 
 // On macOS, configure custom SQLite before creating any database instances
