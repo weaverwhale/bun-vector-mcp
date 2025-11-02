@@ -16,7 +16,7 @@ export const QUESTION_WEIGHT = 0.6;
 export const CONTENT_WEIGHT = 0.4;
 
 // Context Assembly
-export const MAX_CONTEXT_LENGTH = CHUNK_SIZE * 20;
+export const MAX_CONTEXT_LENGTH = CHUNK_SIZE * 80;
 
 // Generation
 export const MAX_ANSWER_TOKENS = CHUNK_SIZE * 5;
