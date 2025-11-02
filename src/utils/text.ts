@@ -259,95 +259,112 @@ export function chunkText(text: string): string[] {
 }
 
 /**
- * Detect semantic boundaries in text (code blocks, SQL, lists, paragraphs)
+ * Represents a semantic unit with its content and type
  */
-function detectSemanticUnits(text: string): string[] {
-  const units: string[] = [];
+interface SemanticUnit {
+  content: string;
+  type: 'code' | 'sql' | 'list' | 'prose';
+}
+
+/**
+ * Detect semantic boundaries in text (code blocks, SQL, lists, paragraphs)
+ * Returns units tagged with their type for differential handling
+ */
+function detectSemanticUnits(text: string): SemanticUnit[] {
+  const units: SemanticUnit[] = [];
   const lines = text.split('\n');
-  
+
   let currentUnit = '';
+  let currentType: 'code' | 'sql' | 'list' | 'prose' = 'prose';
   let inCodeBlock = false;
   let codeBlockFence = '';
   let inSqlBlock = false;
   let inList = false;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     const trimmedLine = line.trim();
-    
+
     // Detect code block start/end
     if (trimmedLine.startsWith('```')) {
       if (!inCodeBlock) {
         // Start of code block - save previous unit if exists
         if (currentUnit.trim()) {
-          units.push(currentUnit.trim());
+          units.push({ content: currentUnit.trim(), type: currentType });
           currentUnit = '';
         }
         inCodeBlock = true;
+        currentType = 'code';
         codeBlockFence = trimmedLine;
         currentUnit = line + '\n';
       } else {
         // End of code block
         currentUnit += line + '\n';
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: 'code' });
         currentUnit = '';
         inCodeBlock = false;
+        currentType = 'prose';
         codeBlockFence = '';
       }
       continue;
     }
-    
+
     // If in code block, just accumulate
     if (inCodeBlock) {
       currentUnit += line + '\n';
       continue;
     }
-    
+
     // Detect SQL statements (CREATE, SELECT, INSERT, UPDATE, DELETE, WITH)
-    const sqlKeywords = /^\s*(CREATE|SELECT|INSERT|UPDATE|DELETE|WITH|ALTER|DROP)\s+/i;
+    const sqlKeywords =
+      /^\s*(CREATE|SELECT|INSERT|UPDATE|DELETE|WITH|ALTER|DROP)\s+/i;
     if (sqlKeywords.test(line)) {
       // Save previous unit if it's not SQL
       if (currentUnit.trim() && !inSqlBlock) {
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: currentType });
         currentUnit = '';
       }
       inSqlBlock = true;
+      currentType = 'sql';
       currentUnit += line + '\n';
       continue;
     }
-    
+
     // Detect end of SQL (semicolon or blank line after SQL)
     if (inSqlBlock) {
       currentUnit += line + '\n';
       if (line.includes(';') || (trimmedLine === '' && currentUnit.trim())) {
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: 'sql' });
         currentUnit = '';
         inSqlBlock = false;
+        currentType = 'prose';
       }
       continue;
     }
-    
+
     // Detect lists (-, *, 1., etc.)
     const listPattern = /^\s*[-*•]\s+|\d+\.\s+/;
     if (listPattern.test(line)) {
       if (!inList && currentUnit.trim()) {
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: currentType });
         currentUnit = '';
       }
       inList = true;
+      currentType = 'list';
       currentUnit += line + '\n';
       continue;
     }
-    
+
     // If we were in a list and hit a non-list line, end the list
     if (inList && !listPattern.test(line) && trimmedLine !== '') {
       if (currentUnit.trim()) {
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: 'list' });
         currentUnit = '';
       }
       inList = false;
+      currentType = 'prose';
     }
-    
+
     // Detect paragraph breaks (double newline or heading)
     if (trimmedLine === '') {
       if (currentUnit.trim()) {
@@ -356,27 +373,74 @@ function detectSemanticUnits(text: string): string[] {
       }
       continue;
     }
-    
+
     // Regular line - add to current unit
     currentUnit += line + '\n';
-    
+
     // Check if current unit is getting large
     if (currentUnit.length > CHUNK_SIZE * 0.8 && trimmedLine === '') {
       // Natural break point
       if (currentUnit.trim()) {
-        units.push(currentUnit.trim());
+        units.push({ content: currentUnit.trim(), type: currentType });
         currentUnit = '';
         inList = false;
+        currentType = 'prose';
       }
     }
   }
-  
+
   // Add final unit
   if (currentUnit.trim()) {
-    units.push(currentUnit.trim());
+    units.push({ content: currentUnit.trim(), type: currentType });
   }
-  
-  return units.filter(unit => unit.length >= MIN_CHUNK_SIZE);
+
+  return units.filter(unit => unit.content.length >= MIN_CHUNK_SIZE);
+}
+
+/**
+ * Split a large prose unit into smaller chunks at sentence boundaries
+ * Respects CHUNK_SIZE while trying to keep sentences together
+ */
+function splitProseUnit(text: string): string[] {
+  if (text.length <= CHUNK_SIZE) {
+    return [text];
+  }
+
+  // Split into sentences
+  const sentences = splitIntoSentences(text);
+
+  if (sentences.length === 0) {
+    return [text];
+  }
+
+  // If we only have one very long sentence, split it by words
+  if (sentences.length === 1 && text.length > CHUNK_SIZE) {
+    return chunkText(text);
+  }
+
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const sentence of sentences) {
+    const candidateChunk = currentChunk
+      ? currentChunk + ' ' + sentence
+      : sentence;
+
+    // If adding this sentence would exceed chunk size, start a new chunk
+    if (candidateChunk.length > CHUNK_SIZE && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk = candidateChunk;
+    }
+  }
+
+  // Add final chunk
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.filter(chunk => chunk.length >= MIN_CHUNK_SIZE);
 }
 
 /**
@@ -385,33 +449,41 @@ function detectSemanticUnits(text: string): string[] {
  */
 export async function semanticChunking(text: string): Promise<string[]> {
   if (!text || text.trim().length === 0) return [];
-  
+
   // First, detect semantic units (code blocks, SQL, lists, paragraphs)
   const units = detectSemanticUnits(text);
-  
+
   if (units.length === 0) return [text];
-  if (units.length === 1 && units[0]!.length <= CHUNK_SIZE) return units;
-  
-  // Now group units into chunks respecting the size limit
+  if (units.length === 1 && units[0]!.content.length <= CHUNK_SIZE)
+    return [units[0]!.content];
+
+  // Now process units based on their type
+  const processedUnits: string[] = [];
+
+  for (const unit of units) {
+    // For code, SQL, and list units, keep them together even if large (per user preference)
+    if (unit.type === 'code' || unit.type === 'sql' || unit.type === 'list') {
+      processedUnits.push(unit.content);
+    } else if (unit.type === 'prose') {
+      // For prose units, split them if they're larger than CHUNK_SIZE
+      if (unit.content.length > CHUNK_SIZE) {
+        const proseChunks = splitProseUnit(unit.content);
+        processedUnits.push(...proseChunks);
+      } else {
+        processedUnits.push(unit.content);
+      }
+    }
+  }
+
+  // Now group the processed units into final chunks, respecting CHUNK_SIZE
   const chunks: string[] = [];
   let currentChunk = '';
-  
-  for (const unit of units) {
-    // If a single unit is larger than chunk size, it becomes its own chunk
-    if (unit.length > CHUNK_SIZE * 1.5) {
-      if (currentChunk.trim()) {
-        chunks.push(currentChunk.trim());
-        currentChunk = '';
-      }
-      chunks.push(unit);
-      continue;
-    }
-    
-    const candidateChunk = currentChunk
-      ? currentChunk + '\n\n' + unit
-      : unit;
-    
-    // If adding this unit would exceed chunk size, start a new chunk
+
+  for (const unit of processedUnits) {
+    const candidateChunk = currentChunk ? currentChunk + '\n\n' + unit : unit;
+
+    // If adding this unit would exceed chunk size significantly, start a new chunk
+    // Use a stricter threshold to avoid overly large chunks
     if (candidateChunk.length > CHUNK_SIZE && currentChunk.trim()) {
       chunks.push(currentChunk.trim());
       currentChunk = unit;
@@ -419,12 +491,12 @@ export async function semanticChunking(text: string): Promise<string[]> {
       currentChunk = candidateChunk;
     }
   }
-  
+
   // Add final chunk
   if (currentChunk.trim()) {
     chunks.push(currentChunk.trim());
   }
-  
+
   return chunks.filter(chunk => chunk.length >= MIN_CHUNK_SIZE);
 }
 
