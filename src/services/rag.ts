@@ -37,15 +37,41 @@ function buildContext(searchResults: SearchResult[]): {
 
   for (let i = 0; i < searchResults.length; i++) {
     const result = searchResults[i]!;
-    const chunkText = result.chunk_text;
+    let chunkText = result.chunk_text;
+    const citation = `[Source ${i + 1}: ${result.filename}${result.chunk_index !== undefined ? `, chunk ${result.chunk_index + 1}` : ''}]`;
 
-    if (totalLength + chunkText.length > MAX_CONTEXT_LENGTH) {
-      log(`[buildContext] Reached max context length at chunk ${i + 1}`);
+    // For the first chunk, always include it (truncate if necessary)
+    if (i === 0) {
+      const citationLength = `${citation}\n`.length;
+      const partLength = citationLength + chunkText.length;
+
+      if (partLength > MAX_CONTEXT_LENGTH) {
+        // Truncate the first chunk to fit within the length limit
+        const truncationMessage = '\n\n[... truncated for length ...]';
+        const maxChunkLength =
+          MAX_CONTEXT_LENGTH - citationLength - truncationMessage.length;
+
+        chunkText = chunkText.substring(0, maxChunkLength) + truncationMessage;
+
+        log(
+          `[buildContext] Truncated first chunk from ${result.chunk_text.length} to ${maxChunkLength} chars`
+        );
+      }
+
+      contextParts.push(`${citation}\n${chunkText}`);
+      totalLength = citationLength + chunkText.length;
+      continue;
+    }
+
+    // For subsequent chunks, check if adding them would exceed the limit
+    if (totalLength + chunkText.length + citation.length > MAX_CONTEXT_LENGTH) {
+      log(
+        `[buildContext] Reached max context length at chunk ${i + 1} (${totalLength} chars)`
+      );
       break;
     }
 
     // Add source citation for attribution
-    const citation = `[Source ${i + 1}: ${result.filename}${result.chunk_index !== undefined ? `, chunk ${result.chunk_index + 1}` : ''}]`;
     contextParts.push(`${citation}\n${chunkText}`);
     totalLength += chunkText.length + citation.length;
   }

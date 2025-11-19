@@ -499,21 +499,26 @@ AI_API_KEY = 'lm-studio';
 
 **Chunking:**
 
-- `CHUNK_SIZE`: 1000 characters (fixed-size mode)
-- `CHUNK_OVERLAP`: 200 characters
+- `CHUNK_SIZE`: 1200 characters
+- `CHUNK_OVERLAP`: 400 characters
+- `MIN_CHUNK_SIZE`: 50 characters
+- `USE_SEMANTIC_CHUNKING`: true
 
 **Search:**
 
 - `DEFAULT_TOP_K`: 5 results
-- `SIMILARITY_THRESHOLD`: 0.5 (50% similarity)
+- `SIMILARITY_THRESHOLD`: 0.6 (60% similarity)
 - `QUESTION_WEIGHT`: 0.6
 - `CONTENT_WEIGHT`: 0.4
 
+**Context Assembly:**
+
+- `MAX_CONTEXT_LENGTH`: 48,000 characters (CHUNK_SIZE × 40)
+
 **Generation:**
 
-- `MAX_ANSWER_TOKENS`: 6000
+- `MAX_ANSWER_TOKENS`: 6000 (CHUNK_SIZE × 5)
 - `GENERATION_TEMPERATURE`: 0.3
-- `MAX_CONTEXT_LENGTH`: 96000 characters
 
 ---
 
