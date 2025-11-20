@@ -6,6 +6,7 @@ import type { IngestResult } from '../types/index';
 import { CHUNK_SIZE, USE_SEMANTIC_CHUNKING } from '../constants/rag';
 import { IngestionError } from '../utils/errors';
 import { parseCSV, detectCSVSchema } from '../utils/csvs';
+import { CODE_FILE_EXTENSIONS, ingestCodeFile } from '../utils/code';
 import {
   extractTextFromFile,
   semanticChunking,
@@ -242,6 +243,11 @@ export async function ingestFile(
     return await ingestCSV(db, filePath);
   }
 
+  // Route code files to whole-file ingestion (no chunking)
+  if (ext && CODE_FILE_EXTENSIONS.has(ext)) {
+    return await ingestCodeFile(db, filePath);
+  }
+
   try {
     console.log(`Processing: ${filename}`);
 
@@ -372,13 +378,17 @@ export async function ingestDirectory(
   const results: IngestResult[] = [];
 
   try {
+    // Build glob pattern that includes PDFs, TXTs, CSVs, and all code files
+    const codeExtensions = Array.from(CODE_FILE_EXTENSIONS).join(',');
+    const globPattern = `**/*.{pdf,txt,csv,${codeExtensions}}`;
+
     // Read directory contents using Bun's native Glob API
     const files = await Array.fromAsync(
-      new Bun.Glob('**/*.{pdf,txt,csv}').scan({ cwd: directoryPath })
+      new Bun.Glob(globPattern).scan({ cwd: directoryPath })
     );
 
     if (files.length === 0) {
-      console.error('No PDF, TXT, or CSV files found in directory');
+      console.error('No supported files found in directory');
       return results;
     }
 
